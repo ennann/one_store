@@ -1,0 +1,48 @@
+{
+  "apiID": "one_store__c__function_aadghiqslrgbg",
+  "apiName": "CreateChatAdmin",
+  "label": {
+    "zh_CN": "创建群管理员",
+    "en_US": null
+  },
+  "description": {
+    "zh_CN": "创建群管理员",
+    "en_US": "Custom Function"
+  },
+  "isPublicAPI": false,
+  "frontendSDKInvokable": false,
+  "longTaskMode": false,
+  "input": [
+    {
+      "key": "chat_id",
+      "type": "Text",
+      "required": true,
+      "label": "群组ID",
+      "description": ""
+    },
+    {
+      "key": "open_ids",
+      "type": "List",
+      "required": true,
+      "label": "用户open_id集合",
+      "description": "",
+      "listItem": {
+        "type": "Text"
+      }
+    }
+  ],
+  "output": [
+    {
+      "key": "code",
+      "type": "BigInt",
+      "label": "状态码",
+      "description": ""
+    },
+    {
+      "key": "message",
+      "type": "Text",
+      "label": "状态码信息",
+      "description": ""
+    }
+  ]
+}

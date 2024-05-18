@@ -1,0 +1,25 @@
+{
+  "apiID": "one_store__c__function_aadghrrgrxceu",
+  "apiName": "DeleteChatGroup",
+  "label": {
+    "zh_CN": "解散飞书群",
+    "en_US": null
+  },
+  "description": {
+    "zh_CN": "解散飞书群",
+    "en_US": "Custom Function"
+  },
+  "isPublicAPI": false,
+  "frontendSDKInvokable": false,
+  "longTaskMode": false,
+  "input": [
+    {
+      "key": "chat_id",
+      "type": "Text",
+      "required": true,
+      "label": "群组ID",
+      "description": ""
+    }
+  ],
+  "output": []
+}

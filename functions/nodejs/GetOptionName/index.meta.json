@@ -1,0 +1,39 @@
+{
+  "apiID": "one_store__c__function_aadgisfayxodg",
+  "apiName": "GetOptionName",
+  "label": {
+    "zh_CN": "获取全局变量的选项名称",
+    "en_US": null
+  },
+  "description": {
+    "zh_CN": "根据对象名称，对象API字段和对象API字段值获取选项名称",
+    "en_US": null
+  },
+  "isPublicAPI": false,
+  "frontendSDKInvokable": false,
+  "longTaskMode": false,
+  "input": [
+    {
+      "key": "option_type",
+      "type": "Text",
+      "required": true,
+      "label": "字段名称",
+      "description": ""
+    },
+    {
+      "key": "option_api",
+      "type": "Text",
+      "required": true,
+      "label": "字段值",
+      "description": ""
+    },
+    {
+      "key": "table_name",
+      "type": "Text",
+      "required": true,
+      "label": "对象名",
+      "description": ""
+    }
+  ],
+  "output": []
+}
