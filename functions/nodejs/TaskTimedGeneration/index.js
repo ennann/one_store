@@ -33,24 +33,24 @@ module.exports = async function (params, context, logger) {
     const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
     const client = await newLarkClient({userId: context.user._id}, logger);
     //2.  第二步根据任务定义，创建抄送人apass数据，给抄送人发送飞书消息
-    // if (task_def_record.carbon_copy) {
-    //     const carbonCopy = task_def_record.carbon_copy;
-    //     const userList = await faas.function('DeployMemberRange').invoke({user_rule: carbonCopy});
-    //     logger.info(`抄送人员筛选规则[${carbonCopy._id}]返回人员数量->`, userList.length)
-    //     if (userList.length > 0) {
-    //         const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor);
-    //         const cardDataList = res.cardDataList;
-    //         const sendFeishuMessageResults = await Promise.all(cardDataList.map(item => limitedSendFeishuMessage(item)));
-    //         const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
-    //         const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
-    //         logger.info(`根据抄送人员筛选规则需要发送飞书数量->${cardDataList.length},成功数量->${sendFeishuMessageSuccess.length},失败数量->${sendFeishuMessageFail.length}`);
-    //         const apassDataList = res.apassDataList;
-    //         const createApassDataResults = await Promise.all(apassDataList.map(item => createApassData(item)));
-    //         const createApassDataSuccess = createApassDataResults.filter(result => result.code === 0);
-    //         const createApassDataFail = createApassDataResults.filter(result => result.code !== 0);
-    //         logger.info(`根据抄送人员筛选规则需要创建抄送人apass数据数量->${apassDataList.length},成功数量->${createApassDataSuccess.length},失败数量->${createApassDataFail.length}`);
-    //     }
-    // }
+    if (task_def_record.carbon_copy) {
+        const carbonCopy = task_def_record.carbon_copy;
+        const userList = await faas.function('DeployMemberRange').invoke({user_rule: carbonCopy});
+        logger.info(`抄送人员筛选规则[${carbonCopy._id}]返回人员数量->`, userList.length)
+        if (userList.length > 0) {
+            const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor);
+            const cardDataList = res.cardDataList;
+            const sendFeishuMessageResults = await Promise.all(cardDataList.map(item => limitedSendFeishuMessage(item)));
+            const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
+            const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
+            logger.info(`根据抄送人员筛选规则需要发送飞书数量->${cardDataList.length},成功数量->${sendFeishuMessageSuccess.length},失败数量->${sendFeishuMessageFail.length}`);
+            const apassDataList = res.apassDataList;
+            const createApassDataResults = await Promise.all(apassDataList.map(item => createApassData(item)));
+            const createApassDataSuccess = createApassDataResults.filter(result => result.code === 0);
+            const createApassDataFail = createApassDataResults.filter(result => result.code !== 0);
+            logger.info(`根据抄送人员筛选规则需要创建抄送人apass数据数量->${apassDataList.length},成功数量->${createApassDataSuccess.length},失败数量->${createApassDataFail.length}`);
+        }
+    }
     // 3. 第三步根据任务处理记录（任务批次）创建门店普通任务
     //创建门店普通任务
 
@@ -151,13 +151,16 @@ async function createStoreTaskEntry(taskDef, task, logger, client, limitedSendFe
         //任务截止时间
         let task_plan_time = dayjs(task.task_create_time).add(item.deal_duration, 'day').valueOf();
         logger.info(`任务处理记录（任务批次）[${task._id}]对应的任务定义详情->`, JSON.stringify(task, null, 2));
+        //获取部门详情
+        let department_record = await application.data.object('_department').select('_id', "_name").where({_id: item.publish_department.id}).findOne();
+        logger.info(`获取部门详情->`, JSON.stringify(department_record, null, 2));
         //飞书群
         if (item.option_handler_type === 'option_01') {
             //群组赛选规则
             const chatRecordList = await faas.function('DeployChatRange').invoke({deploy_rule: item.chat_rule});
             logger.info(`群组筛选规则[${item.chat_rule._id}]返回群数量->`, chatRecordList.length);
             logger.info(`群组筛选规则[${item.chat_rule._id}]返回群详情->`, JSON.stringify(chatRecordList, null, 2));
-            for (const chatRecordListElement of chatRecordList) {
+           for (const chatRecordListElement of chatRecordList) {
                 const createData = {
                     name: item.name,
                     description: item.description,
@@ -173,14 +176,16 @@ async function createStoreTaskEntry(taskDef, task, logger, client, limitedSendFe
                     option_upload_attachementdd: item.option_upload_attachement, //任务要求上传附件
                     set_warning_time: item.set_warning_time, //是否设置任务到期前提醒
                     warning_time: item.warning_time, //预警时间（小时）
-                    source_department: {_id: item.publish_department._id, name: item.publish_department.name}, //任务来源
+                    source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
                     option_priority: item.option_priority, //优先级
                 };
                 //为任务处理记录（任务批次）创建门店普通任务
                 createData.task_chat = {_id: chatRecordListElement._id}; //负责群
                 //查询飞书群所在部门
                 const feishu_chat = await application.data.object('object_feishu_chat').select('_id', 'department').where({_id: chatRecordListElement._id}).findOne();
-                createData.deal_department = {_id: feishu_chat.department._id}; //任务所属部门
+                if (feishu_chat) {
+                    createData.deal_department = {_id: feishu_chat.department._id}; //任务所属部门
+                }
                 createDataList.push(createData);
             }
         } else if (item.option_handler_type === 'option_02') {
@@ -203,7 +208,7 @@ async function createStoreTaskEntry(taskDef, task, logger, client, limitedSendFe
                     option_upload_attachementdd: item.option_upload_attachement, //任务要求上传附件
                     set_warning_time: item.set_warning_time, //是否设置任务到期前提醒
                     warning_time: item.warning_time, //预警时间（小时）
-                    source_department: {_id: item.publish_department._id, name: item.publish_department.name}, //任务来源
+                    source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
                     option_priority: item.option_priority, //优先级
                 };
                 //为任务处理记录（任务批次）创建门店普通任务
@@ -231,11 +236,11 @@ async function createStoreTaskEntry(taskDef, task, logger, client, limitedSendFe
             const updateData = {
                 _id: task._id,
                 option_status: 'option_05',
-                option_status_show: `任务创建成功,成功发布任务数量：${storeTaskCreateResults.length}`,
+                option_status_show: `任务创建成功,成功发布任务数量：${successfulStoreTasks.length}`,
             };
             if (failedStoreTasks.length > 0) {
                 updateData.option_status = 'option_03';
-                updateData.option_status_show = `任务创建部分成功,应创建任务数量：${successfulStoreTasks.length},成功数量：${successfulStoreTasks.length},失败数量：${failedStoreTasks.length}`;
+                updateData.option_status_show = `任务创建部分成功,应创建任务数量：${storeTaskCreateResults.length},成功数量：${successfulStoreTasks.length},失败数量：${failedStoreTasks.length}`;
             }
             //发送飞书卡片消息
             logger.info(`根据门店普通任务创建记录需要发送飞书数量---->${messageCardSendDatas.length}`);
@@ -315,21 +320,19 @@ async function createStoreTaskEntryStart(item, task, logger, client) {
                 option_type: 'option_priority',
                 option_api: task.option_priority,
             });
-            let url = "";
             //  需要替换 记录 ID 1799205024994314 { _id: 1799205024994314 }
             // 需要打开表单的流程
             // `https://applink.feishu.cn/client/web_app/open?mode=sidebar&appId=cli_a6b23873d463100b&path=/ae/user/pc/one_store__c/system_page/action&1=1&objectApiName2RecordIds%5Bone_store__c__object_aadgfx2qchmdi%5D%5B0%5D=${storeTaskId._id}&1=1&version=v2&actionApiName=automation_0e8567ea5a4&namespace=one_store__c&recordID=`
             // 直接运行的流程
             // `https://applink.feishu.cn/client/web_app/open?mode=sidebar&appId=cli_a6b23873d463100b&path=/ae/user/pc/one_store__c/system_page/action&1=1&variables%5B0%5D%5BvarApiName%5D=customizeInput__original__717a10b5&variables%5B0%5D%5BinputValue%5D=${storeTaskId._id}&1=1&actionApiName=automation_952bc370750&namespace=one_store__c&recordID=&version=v2`
+
             //判断执行流程的url
-            if (item.option_upload_image === "option_yes" ||
-                item.option_input_information === "option_yes" ||
-                item.option_upload_attachement === "option_yes") {
-                url = `https://applink.feishu.cn/client/web_app/open?mode=sidebar&appId=cli_a6b23873d463100b&path=/ae/user/pc/one_store__c/system_page/action&1=1&objectApiName2RecordIds%5Bone_store__c__object_aadgfx2qchmdi%5D%5B0%5D=${storeTaskId._id}&1=1&version=v2&actionApiName=automation_0e8567ea5a4&namespace=one_store__c&recordID=`;
-            } else {
-                url = `https://applink.feishu.cn/client/web_app/open?mode=sidebar&appId=cli_a6b23873d463100b&path=/ae/user/pc/one_store__c/system_page/action&1=1&variables%5B0%5D%5BvarApiName%5D=customizeInput__original__717a10b5&variables%5B0%5D%5BinputValue%5D=${storeTaskId._id}&1=1&actionApiName=automation_952bc370750&namespace=one_store__c&recordID=&version=v2`;
-            }
-            const hourDiff = task.task_plan_time - dayjs().valueOf() / 36e5;
+            const url = "https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=" + storeTaskId._id;
+            const pc_url = "https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=" + storeTaskId._id;
+            const android_url = "https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=" + storeTaskId._id;
+            const ios_url = "https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=" + storeTaskId._id;
+            const hourDiff = (task.task_plan_time - dayjs().valueOf()) / 36e5;
+            logger.info("task.source_department--->",);
             const content = {
                 config: {
                     wide_screen_mode: true,
@@ -345,7 +348,7 @@ async function createStoreTaskEntryStart(item, task, logger, client) {
                     {
                         tag: 'div',
                         text: {
-                            content: '任务来源：' + task.source_department.name,
+                            content: '任务来源：' + task.source_department._name.find(item => item.language_code === 2052).text,
                             tag: 'plain_text',
                         },
                     },
@@ -367,19 +370,24 @@ async function createStoreTaskEntryStart(item, task, logger, client) {
                         tag: 'hr',
                     },
                     {
-                        tag: 'action',
-                        actions: [
+                        "tag": "action",
+                        "actions": [
                             {
-                                tag: 'button',
-                                text: {
-                                    tag: 'plain_text',
-                                    content: '完成任务',
+                                "tag": "button",
+                                "text": {
+                                    "tag": "plain_text",
+                                    "content": "查看详情"
                                 },
-                                url: url,
-                                type: 'primary',
-                            },
-                        ],
-                    },
+                                "type": "primary",
+                                "multi_url": {
+                                    "url": url,
+                                    "pc_url": pc_url,
+                                    "android_url": android_url,
+                                    "ios_url": ios_url
+                                }
+                            }
+                        ]
+                    }
                 ],
                 header: {
                     template: 'turquoise',
@@ -422,8 +430,8 @@ async function createStoreTaskEntryStart(item, task, logger, client) {
                         .select('_id', 'chat_id')
                         .where({department: feishuPeople._department._id || feishuPeople._department.id})
                         .findOne();
-                    logger.info("获取部门所在飞书群----->",JSON.stringify(object_feishu_chat,null,2));
-                    if (!object_feishu_chat){
+                    logger.info("获取部门所在飞书群----->", JSON.stringify(object_feishu_chat, null, 2));
+                    if (!object_feishu_chat) {
                         logger.warn(`该用户[${feishuPeople._id}]的部门飞书群不存在`);
                         return {
                             code: 0,
@@ -473,9 +481,9 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record
     for (const user of userList) {
         //飞书消息
         const cardData = {
-            receive_id_type: 'open_id', //接收方类型：open_id/user_id/union_id/email/chat_id text
+            receive_id_type: 'user_id', //接收方类型：open_id/user_id/union_id/email/chat_id text
             msg_type: 'interactive', //消息类型：text、post、image、file、audio、media、sticker、interactive、share_chat、share_user text
-            receive_id: user.open_id, //接收方ID text
+            receive_id: user.user_id, //接收方ID text
             content: '', //消息卡片内容  JSON
         };
         const content = {

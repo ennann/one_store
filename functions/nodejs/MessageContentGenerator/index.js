@@ -58,16 +58,19 @@ module.exports = async function (params, context, logger) {
     }
     // 多张图片使用消息卡片模板类型
     const elements = getCardImgElement(imageKeys);
-    const info = {
-      elements,
-      header: {
-        template: "turquoise",
-        title: {
-          tag: "plain_text",
-          content: record.message_title,
-        }
-      },
-    };
+    let info = { elements };
+    if (record.message_title) {
+      info = {
+        ...info,
+        header: {
+          template: "turquoise",
+          title: {
+            tag: "plain_text",
+            content: record.message_title,
+          }
+        },
+      }
+    }
     logger.info({ info });
     return {
       msg_type: "interactive",
@@ -75,67 +78,63 @@ module.exports = async function (params, context, logger) {
     };
   }
 
-  // 转换富文本-富文本类型
-  const formatRichText = async (htmlString, title) => {
+  // 转换富文本-飞书卡片类型
+  const formatRichToCard = async (htmlString, title) => {
     const divs = [];
-    const formattedData = [];
+    const elements = [];
     let match;
     const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const aRegex = /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g;
     const tagRegex = /<[^>]*>/g;
-    const divRegex = /<div[^>]*>(.*?)<\/div>/gs;
+    // const divRegex = /<div[^>]*>(.*?)<\/div>/gs;
+    const divRegex = /<div[^>]*>\s*([\s\S]*?)\s*<\/div>/gs;
     const hrefRegex = /href="([^"]*)"/;
+    const _htmlString = htmlString.replace(/<div[^>]*><\/div>/g, '');
 
-    while ((match = divRegex.exec(htmlString)) !== null && !!match[1]) {
+    while ((match = divRegex.exec(_htmlString)) !== null && !!match[1]) {
       divs.push(match[1]);
     }
 
-    for (const div of divs) {
-      let data = [];
+    logger.info({ divs })
 
+    for (const div of divs) {
+      const imgs = [];
+      imgRegex.lastIndex = 0;
+      // 图片
       while ((match = imgRegex.exec(div)) !== null) {
-        logger.info({ div });
-        const srcMatch = div.match(/src="([^"]*)"/);
+        const imgDiv = match[0];
+        const srcMatch = imgDiv.match(/src="([^"]*)"/);
         const urlParams = new URLSearchParams(srcMatch[1].split('?')[1]);
         const token = urlParams.get('token');
-        const imgKeys = await getImageKeys([{ token }]);
-        formattedData.push([{ tag: 'img', image_key: imgKeys[0] }]);
+        imgs.push({ token });
       }
-
-      const textSegments = div.replace(imgRegex, '').split(tagRegex);
-      const textList = textSegments.filter(i => !!i);
-      if (textList.length === 1) {
-        let _item = { tag: 'text', text: textList[0], style: getStyles(div) }
-        if (/<a/.test(div)) {
-          const aMatch = div.match(hrefRegex);
-          _item = {
-            ..._item,
-            tag: "a",
-            href: aMatch?.[1] ?? ''
-          }
-        }
-        data.push(_item);
+      if (imgs.length > 0) {
+        const imgKeys = await getImageKeys(imgs);
+        const imgElement = getCardImgElement(imgKeys);
+        elements.push(...imgElement);
       }
-      if (textList.length > 1) {
-        const matches = div.match(/<[^>]+>|[^<]+/g);
-        const list = mergeTags(matches);
-        list.forEach((text, index) => {
-          let item = { tag: 'text', text: textList[index], style: getStyles(text) };
-          if (/<a/.test(text)) {
-            const match = text.match(hrefRegex);
-            item = {
-              ...item,
-              tag: "a",
-              href: match?.[1] ?? ''
-            }
-          }
-          data.push(item);
+      if ((match = imgRegex.exec(div)) === null) {
+        const content = parseMarkdown(div);
+        elements.push({
+          tag: "markdown",
+          content
         });
       }
-      data.length > 0 && formattedData.push(data);
     }
-    logger.info({ formattedData });
-    return { zh_cn: { title, content: formattedData } };
+    let info = { elements };
+    if (title) {
+      info = {
+        ...info,
+        header: {
+          template: "turquoise",
+          title: {
+            tag: "plain_text",
+            content: title,
+          }
+        },
+      }
+    }
+    logger.info({ info });
+    return info;
   };
 
   // 获取消息内容
@@ -143,16 +142,16 @@ module.exports = async function (params, context, logger) {
     switch (type) {
       // 富文本类型消息
       case 'option_rich_text':
-        const postData = await formatRichText(record.message_richtext.raw, record.message_title);
+        const postData = await formatRichToCard(record.message_richtext.raw, record.message_title);
         return {
-          msg_type: "post",
+          msg_type: "interactive",
           content: JSON.stringify(postData)
         };
       // 视频类型消息直接发成文本类型
       case 'option_video':
         const textObj = {
-          text: `${record.video_url} 
-                 ${record.message_title ?? ''}` }
+          text: `${record.message_title ?? ''}\n\n${record.video_url}`
+        }
         return {
           msg_type: "text",
           content: JSON.stringify(textObj)
@@ -195,155 +194,69 @@ module.exports = async function (params, context, logger) {
 
 // 获取飞书卡片的图片布局信息
 const getCardImgElement = (imageKeys) => {
-  // 多张图片使用消息卡片模板类型
-  const columns = imageKeys.map(img_key => ({
-    tag: "column",
-    width: "weighted",
-    weight: 1,
-    elements: [
-      {
-        img_key,
-        tag: "img",
-        mode: "fit_horizontal",
-        preview: true,
-        alt: {
-          content: "",
-          tag: "plain_text"
-        },
-      }
-    ]
-  }));
-  const elements = [{
-    tag: "column_set",
-    background_style: "default",
-    horizontal_spacing: "default",
-    columns,
-    flex_mode: imageKeys.length === 1
-      ? "none"
-      : [2, 4].includes(imageKeys.length)
-        ? "bisect"
-        : "trisect",
-  }];
-
-  return elements;
-};
-
-// 转换富文本-飞书卡片类型
-const formatRichToCard = async (htmlString, title) => {
-  const divs = [];
-  const formattedData = [];
-  let match;
-  const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-  const tagRegex = /<[^>]*>/g;
-  const divRegex = /<div[^>]*>(.*?)<\/div>/gs;
-  const hrefRegex = /href="([^"]*)"/;
-
-  while ((match = divRegex.exec(htmlString)) !== null && !!match[1]) {
-    divs.push(match[1]);
-  }
-
-  for (const div of divs) {
-    let data = [];
-    const imgs = [];
-
-    while ((match = imgRegex.exec(div)) !== null) {
-      logger.info({ div });
-      const srcMatch = div.match(/src="([^"]*)"/);
-      const urlParams = new URLSearchParams(srcMatch[1].split('?')[1]);
-      const token = urlParams.get('token');
-      imgs.push({ token });
-      const imgKeys = await getImageKeys([{ token }]);
-      data.push({ tag: 'img', image_key: imgKeys[0] });
-    }
-
-    const textSegments = div.replace(imgRegex, '').split(tagRegex);
-    const textList = textSegments.filter(i => !!i);
-    if (textList.length === 1) {
-      let _item = { tag: 'text', text: textList[0], style: getStyles(div) }
-      if (/<a/.test(div)) {
-        const aMatch = div.match(hrefRegex);
-        _item = {
-          ..._item,
-          tag: "a",
-          href: aMatch?.[1] ?? ''
+  // 先分列，三图一列
+  const imageKeyList = splitArray(imageKeys);
+  const list = imageKeyList.reduce((pre, imageKeys) => {
+    const columns = imageKeys.map(img_key => ({
+      tag: "column",
+      width: "weighted",
+      weight: 1,
+      elements: [
+        {
+          img_key,
+          tag: "img",
+          mode: "fit_horizontal",
+          preview: true,
+          alt: {
+            content: "",
+            tag: "plain_text"
+          },
         }
-      }
-      data.push(_item);
-    }
-    if (textList.length > 1) {
-      const matches = div.match(/<[^>]+>|[^<]+/g);
-      const list = mergeTags(matches);
-      list.forEach((text, index) => {
-        let item = { tag: 'text', text: textList[index], style: getStyles(text) };
-        if (/<a/.test(text)) {
-          const match = text.match(hrefRegex);
-          item = {
-            ...item,
-            tag: "a",
-            href: match?.[1] ?? ''
-          }
-        }
-        data.push(item);
-      });
-    }
-    data.length > 0 && formattedData.push(data);
-  }
-  logger.info({ formattedData });
-  return { zh_cn: { title, content: formattedData } };
-};
-
-
-function getStyles(text) {
-  const style = [];
-  if (/<u>/.test(text)) {
-    style.push("underline");
-  }
-  if (/<b>/.test(text)) {
-    style.push("bold");
-  }
-  if (/<i>/.test(text)) {
-    style.push("italic");
-  }
-  if (/<s>/.test(text)) {
-    style.push("lineThrough");
-  }
-  return style;
-}
-
-function mergeTags(arr) {
-  let mergedArray = [];
-  let tempStr = '';
-
-  for (let i = 0; i < arr.length; i++) {
-    if (arr[i].startsWith('<') && arr[i].endsWith('>')) {
-      // 如果是以标签开始的字符串，则将其添加到tempStr中
-      tempStr += arr[i];
-      if (arr[i].endsWith('</')) {
-        // 如果是以闭合标签结束的字符串，则将tempStr添加到mergedArray中，并重置tempStr
-        mergedArray.push(tempStr);
-        tempStr = '';
-      }
-    } else {
-      // 如果不是以标签开始的字符串，则直接添加到mergedArray中
-      if (tempStr) {
-        // 如果tempStr中有内容，说明前面有标签，将其添加到mergedArray中
-        mergedArray.push(tempStr);
-        tempStr = ''; // 重置tempStr
-      }
-      mergedArray.push(arr[i]);
-    }
-  }
-
-  const list = mergedArray.reduce((pre, ele, index, arr) => {
-    if (/</.test(ele) || /<\/[^>]+>/.test(ele)) {
-      return pre;
-    }
-    if (/</.test(arr[index - 1]) && /<\/[^>]+>/.test(arr[index + 1])) {
-      return [...pre, arr[index - 1] + ele + arr[index + 1]];
-    }
-    return [...pre, ele];
+      ]
+    }));
+    const elements = {
+      tag: "column_set",
+      background_style: "default",
+      horizontal_spacing: "default",
+      columns,
+      flex_mode: imageKeys.length === 1
+        ? "none"
+        : [2, 4].includes(imageKeys.length)
+          ? "bisect"
+          : "trisect",
+    };
+    return [
+      ...pre,
+      elements
+    ];
   }, []);
-
   return list;
-}
+};
 
+const parseMarkdown = (text) => {
+  const tagRegex = /<([a-z]+)[^>]*>(.*?)<\/\1>/;
+  const replaceText = str => str.replace(/<[^>]*>/g, '');
+
+  const tagHandlers = {
+    a: (match, content) => {
+      const url = match.match(/href="(.*?)"/)[1];
+      return "[" + replaceText(content) + "](" + url + ")";
+    },
+    b: (content) => "**" + replaceText(content) + "**",
+    i: (content) => "*" + replaceText(content) + "*",
+    s: (content) => "~~~" + replaceText(content) + "~~~"
+  };
+
+  return text.replace(tagRegex, (match, tagName, content) => {
+    const handler = tagHandlers[tagName];
+    return handler ? handler(match, content) : content;
+  });
+};
+
+function splitArray(arr, size = 3) {
+  var result = [];
+  for (var i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
+  return result;
+}
