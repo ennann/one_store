@@ -11,24 +11,33 @@ const _ = application.operator;
 module.exports = async function (params, context, logger) {
   // 日志功能
 
-
   // const messageDefineFields = await application.metadata.object("object_chat_message_def").getFields();
   // // logger.info(`fields: ${JSON.stringify(fields, null, 4)}`);
   // const fieldApiNames = messageDefineFields.map(item => item.apiName);
   // // logger.info(fieldApiNames);
 
+  const redisValue = await baas.redis.setex("2024-05-21",24*60*60,1);
 
-   
+
+  let object_task_def_record = await application.data.object('object_task_def').select('publish_department').findOne();
+  logger.info(object_task_def_record)
+  logger.info(object_task_def_record.publish_department)
+
+
+  return
+
+
+
   query = {}
   let user_records = await application.data.object("_user")
-    .select("_id", "_name", "_email", "_department",  "_phoneNumber", "_lark_user_id")
+    .select("_id", "_name", "_email", "_department", "_phoneNumber", "_lark_user_id")
     .where(query)
     .find();
-  
+
   console.info(user_records);
 
   await application.data.object('object_chat_member').create({
-    chat_member: { _id: 1798280532476963, _name: [ { language_code: 2052, text: '王书建' } ] }
+    chat_member: { _id: 1798280532476963, _name: [{ language_code: 2052, text: '王书建' }] }
   })
 
 

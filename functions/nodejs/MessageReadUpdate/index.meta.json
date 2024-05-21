@@ -1,8 +1,8 @@
 {
-  "apiID": "one_store__c__function_aadgix7pynakw",
-  "apiName": "MessageRetrySend",
+  "apiID": "one_store__c__function_aadgjsmiec4ii",
+  "apiName": "MessageReadUpdate",
   "label": {
-    "zh_CN": "发送消息-重试",
+    "zh_CN": "更新消息已读数量",
     "en_US": ""
   },
   "description": {
@@ -13,7 +13,7 @@
   "frontendSDKInvokable": false,
   "input": [
     {
-      "key": "record",
+      "key": "message_batch",
       "type": "Record",
       "label": "消息发送批次",
       "required": true,

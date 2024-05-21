@@ -51,14 +51,14 @@ module.exports = async function (params, context, logger) {
             'option_priority', //优先级(全局选项)：高:option_01，中:option_02，低:option_03
             'option_upload_image', //任务要求上传图片
             'option_input_information', //任务要求录入完成信息
-            'option_upload_attachement', //任务要求上传附件
+            'option_upload_attachment', //任务要求上传附件
             'is_workday_support', //是否支持工作日历 布尔
             'warning_time', //设置预警时间（小时）
             'set_warning_time' //设置任务到期前提醒
         )
         .where({_id: object_task_create_monitor.task_def._id || object_task_create_monitor.task_def.id}).findOne();
     // task 代表任务处理记录
-    const createDatas = [];
+    const createDataList = [];
     let task_plan_time = dayjs(object_task_create_monitor.task_create_time).add(0, 'day').valueOf();
     logger.info(`任务定义->`, JSON.stringify(object_task_def, null, 2));
     if (!object_task_def.deal_duration) {
@@ -86,9 +86,9 @@ module.exports = async function (params, context, logger) {
                 task_create_time: object_task_create_monitor.task_create_time, //任务创建时间
                 task_plan_time: task_plan_time,  //要求完成时间 ===  开始时间 + 任务处理时长
                 is_overdue: "option_no",  //是否超期
-                option_upload_imagede: object_task_def.option_upload_image,  //任务要求上传图片
-                option_input_informationdd: object_task_def.option_input_information,  //任务要求录入完成信息
-                option_upload_attachementdd: object_task_def.option_upload_attachement,  //任务要求上传附件
+                option_upload_image: object_task_def.option_upload_image,  //任务要求上传图片
+                option_input_information: object_task_def.option_input_information,  //任务要求录入完成信息
+                option_upload_attachment: object_task_def.option_upload_attachment,  //任务要求上传附件
                 set_warning_time: object_task_def.set_warning_time,  //是否设置任务到期前提醒
                 warning_time: object_task_def.warning_time,  //预警时间（小时）
                 source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
@@ -102,7 +102,7 @@ module.exports = async function (params, context, logger) {
             if (feishu_chat) {
                 createData.deal_department = {_id: feishu_chat.department._id} //任务所属部门
             }
-            createDatas.push(createData);
+            createDataList.push(createData);
         }
     } else if (object_task_def.option_handler_type === "option_02") {
         //人员塞选规则
@@ -119,9 +119,9 @@ module.exports = async function (params, context, logger) {
                 task_create_time: object_task_create_monitor.task_create_time, //任务创建时间
                 task_plan_time: task_plan_time,  //要求完成时间 ===  开始时间 + 任务处理时长
                 is_overdue: "option_no",  //是否超期
-                option_upload_imagede: object_task_def.option_upload_image,  //任务要求上传图片
-                option_input_informationdd: object_task_def.option_input_information,  //任务要求录入完成信息
-                option_upload_attachementdd: object_task_def.option_upload_attachement,  //任务要求上传附件
+                option_upload_image: object_task_def.option_upload_image,  //任务要求上传图片
+                option_input_information: object_task_def.option_input_information,  //任务要求录入完成信息
+                option_upload_attachment: object_task_def.option_upload_attachment,  //任务要求上传附件
                 set_warning_time: object_task_def.set_warning_time,  //是否设置任务到期前提醒
                 warning_time: object_task_def.warning_time,  //预警时间（小时）
                 source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
@@ -133,13 +133,13 @@ module.exports = async function (params, context, logger) {
             const user = await application.data.object("_user")
                 .select("_id", "_department").where({_id: userListElement._id}).findOne();
             createData.deal_department = {_id: user._department._id} //任务所属部门
-            createDatas.push(createData);
+            createDataList.push(createData);
         }
     }
-    logger.info(`需要为任务处理记录[${object_task_create_monitor._id}]创建的门店普通任务数量->`, createDatas.length);
+    logger.info(`需要为任务处理记录[${object_task_create_monitor._id}]创建的门店普通任务数量->`, createDataList.length);
 
-    if (createDatas.length > 0) {
-        const storeTaskCreateResults = await Promise.all(createDatas.map(object_store_task => createStoreTaskEntryStart(object_store_task, logger)));
+    if (createDataList.length > 0) {
+        const storeTaskCreateResults = await Promise.all(createDataList.map(object_store_task => createStoreTaskEntryStart(object_store_task, logger)));
         const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
         const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
         logger.info(`为任务处理记录[${object_task_create_monitor._id}]创建门店普通任务成功数量: ${successfulStoreTasks.length}, 失败数量: ${failedStoreTasks.length}`);

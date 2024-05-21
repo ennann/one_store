@@ -18,7 +18,7 @@ module.exports = async function (params, context, logger) {
     const taskRecord = await application.data
         .object('object_store_task')
         .where({ _id: storeTaskId })
-        .select('name', 'description', 'task_plan_time', '_id', 'option_upload_attachementdd', 'attachment', 'option_upload_imagede', 'image')
+        .select('name', 'description', 'task_plan_time', '_id', 'option_upload_attachementdd', 'attachment', 'option_upload_image', 'image')
         .findOne();
 
     logger.info({ taskRecord });

@@ -14,76 +14,211 @@ module.exports = async function (params, context, logger) {
   // 日志功能
   logger.info(`重试-发送消息 函数开始执行`, params);
 
-  const { record } = params;
+  if (!params.record) {
+    throw new Error("请传入消息发送批次");
+  }
 
-  const sendMessage = async ({ content, msg_type, receive_id, receive_id_type, _id }) => {
-    const msgInfo = { content, msg_type, receive_id, receive_id_type };
-    logger.info({ msgInfo });
+  const { record } = params;
+  const DB = application.data.object;
+  const BATCH_OBJECT = "object_message_send";
+  const RECORD_OBJECT = "object_message_record";
+
+  // 获取用户ID
+  const getUserIds = async (users) => {
     try {
-      const res = await faas.function('MessageCardSend').invoke({ ...msgInfo });
-      return { ...res, _id };
+      const userRecords = await DB("_user")
+        .where({
+          _id: application.operator.hasAnyOf(users.map(i => i._id))
+        })
+        .select("_lark_user_id")
+        .find();
+      logger.info({ userRecords });
+      return userRecords.map(i => i._lark_user_id);
     } catch (error) {
-      logger.error("发送消息失败", error);
+      throw new Error("获取用户信息失败", error);
     }
   };
 
-  const records = await application.data.object("object_message_log")
-    .where({
-      message_send: { _id: record._id },
-      result: "option_failed"
-    })
-    .select("content", "msg_type", "receive_id", "receive_id_type", "_id")
-    .find();
-
-  if (records.length === 0) {
-    logger.info("记录中没有发送失败的消息，无需重试");
-    return
-  }
-
-  // 限流器
-  const limitSendMessage = createLimiter(sendMessage);
-  // 统一调用发送
-  const sendMessageResult = await Promise.all(records.map((item) => limitSendMessage(item)));
-  const successRecords = sendMessageResult.filter(i => i.code === 0);
-  const failRecords = sendMessageResult.filter(i => i.code !== 0);
-  logger.info("总数", sendMessageResult.length);
-  logger.info("成功数量", successRecords.length);
-  logger.info("失败数量", failRecords.length);
-  const recordData = await application.data.object("object_message_send")
-    .where({ _id: record._id })
-    .select("success_count")
-    .findOne();
-  let counts = {};
-
-  if (sendMessageResult.every(i => i.code === 0)) {
-    // 重试全部成功
-    counts = {
-      fail_count: 0,
-      success_count: recordData.success_count + sendMessageResult.length,
+  // 获取飞书群成员
+  const getChatMembers = async (_id) => {
+    try {
+      const chatMemberIds = [];
+      await DB('object_chat_member')
+        .where({ store_chat: { _id } })
+        .select("_id", "chat_member")
+        .findStream(records => {
+          const ids = records.map(i => i.chat_member._id);
+          chatMemberIds.push(...ids);
+        });
+      return chatMemberIds;
+    } catch (error) {
+      logger.error(`获取飞书群 ${_id} 成员失败`, error);
+      throw new Error(`获取飞书群 ${_id} 成员失败`, error);
     }
-  } else {
-    // 部分成功
-    counts = {
-      fail_count: failRecords.length,
-      success_count: recordData.success_count + successRecords.length,
-    }
-  }
+  };
 
-  // 需要更新的日志记录
-  const logData = successRecords.map((item) => ({
-    _id: item._id,
-    result: "option_success"
-  }))
+  // 获取群信息
+  const getChatInfo = async (chat) => {
+    try {
+      const chat_record = await DB('object_feishu_chat')
+        .where({ _id: chat._id })
+        .select("_id", "chat_owner", "chat_managers", "chat_id")
+        .findOne();
+      const chatMemberIds = await getChatMembers(chat_record._id);
+      const allMemberIds = Array.from(new Set([
+        ...(chat_record.chat_managers.length > 0 ? chat_record.chat_managers.map(i => i._id) : []),
+        ...chatMemberIds,
+        chat_record.chat_owner._id,
+      ]));
+      logger.info({ allMemberIds });
+      return {
+        chat_ids: [chat_record.chat_id],
+        allMemberIds
+      };
+    } catch (error) {
+      logger.error(`获取飞书群 ${data.chat_id} 信息失败`, error);
+    }
+  };
+
+  // 获取批次数据
+  const getBatchData = async () => {
+    try {
+      const data = await DB(BATCH_OBJECT)
+        .where({ _id: record._id })
+        .select("_id", "message_content", "msg_type", "success_count")
+        .findOne();
+      logger.info({ data });
+      return data;
+    } catch (error) {
+      throw new Error("获取消息发送批次失败", error);
+    }
+  };
+
+  // 获取关联批次的消息发送记录
+  const getSendRecords = async () => {
+    try {
+      const sendRecords = [];
+      await DB(RECORD_OBJECT)
+        .where({
+          message_batch: { _id: record._id },
+          result: "option_failed"
+        })
+        .select("_id", "option_send_channel", "message_chat", "accept_user")
+        .findStream(records => sendRecords.push(...records));
+      logger.info({ sendRecords });
+      return sendRecords;
+    } catch (error) {
+      throw new Error("获取关联批次的消息发送记录失败", error);
+    }
+  };
+
+  // 发送消息
+  const sendMessage = async ({ _id, option_send_channel, message_chat, accept_user, content, msg_type }) => {
+    const receive_id_type = option_send_channel === "option_group" ? "chat_id" : "user_id";
+    const msgInfo = { content, msg_type, receive_id_type };
+    let ids = [];
+    let chatUsers = [];
+    if (option_send_channel === "option_user") {
+      ids = await getUserIds(accept_user);
+    }
+    if (option_send_channel === "option_group") {
+      const { chat_ids, allMemberIds: user_ids } = await getChatInfo(message_chat);
+      ids = chat_ids;
+      chatUsers = user_ids;
+      const task = await baas.tasks.createAsyncTask('MessageReadRecordCreate', {
+        user_ids,
+        message_send_record: { _id }
+      });
+      logger.info("执行创建消息阅读记录异步任务", { task });
+    }
+    logger.info({ ids });
+
+    try {
+      const funList = ids.map(receive_id => faas.function('MessageCardSend').invoke({ ...msgInfo, receive_id }))
+      const result = await Promise.all(funList);
+      return result.map(item => ({
+        ...item,
+        _id,
+        unread_count: option_send_channel === "option_user" ? ids.length : chatUsers.length
+      }));
+    } catch (error) {
+      logger.error("发送消息失败", error);
+      return { code: -1 };
+    }
+  };
 
   try {
-    await application.data.object("object_message_send").update({
-      _id: record._id,
-      send_end_datetime: dayjs().valueOf(),
-      ...counts
+    // 消息发送记录
+    const records = await getSendRecords();
+    if (records.length === 0) {
+      logger.info("记录中没有发送失败的消息，无需重试");
+      return;
+    }
+
+    // 消息批次数据
+    const batchData = await getBatchData();
+    const msgInfo = {
+      content: batchData.message_content,
+      msg_type: batchData.msg_type
+    };
+
+    // 更新批次发送状态为重试中 option_retry
+    await DB(BATCH_OBJECT).update({
+      _id: batchData._id,
+      option_status: "option_retry",
+      send_start_datetime: dayjs().valueOf()
     });
-    await application.data.object("object_message_log").batchUpdate(logData);
-    logger.info("更新消息发送记录及日志成功");
+
+    // 限流器
+    const limitSendMessage = createLimiter(sendMessage);
+    const res = await Promise.all(records.map((item) => limitSendMessage({ ...item, ...msgInfo })));
+    const sendMessageResult = res.flat();
+    const successRecords = sendMessageResult.filter(i => i.code === 0);
+    const failRecords = sendMessageResult.filter(i => i.code !== 0);
+
+    logger.info("重新发送消息总数", sendMessageResult.length);
+    logger.info("重新发送消息成功数量", successRecords.length);
+    logger.info("重新发送消息失败数量", failRecords.length);
+
+    let updateData = {};
+    if (sendMessageResult.every(i => i.code === 0)) {
+      // 重试全部成功
+      updateData = {
+        fail_count: 0,
+        option_status: "option_all_success",
+        success_count: batchData.success_count + sendMessageResult.length,
+      }
+    } else {
+      // 部分成功
+      updateData = {
+        fail_count: failRecords.length,
+        option_status: "option_part_success",
+        success_count: batchData.success_count + successRecords.length,
+      }
+    }
+
+    // 更新批次数据
+    await DB(BATCH_OBJECT).update({
+      ...updateData,
+      _id: batchData._id,
+      send_end_datetime: dayjs().valueOf()
+    });
+    logger.info("更新批次数据成功")
+
+    // 更新消息记录
+    const updateRecordData = successRecords.map((item) =>
+      DB(RECORD_OBJECT)
+        .update({
+          _id: item._id,
+          result: "option_success",
+          read_status: "option_unread",
+          unread_count: item.unread_count
+        })
+    );
+    await Promise.all(updateRecordData);
+    logger.info("更新消息记录成功")
   } catch (error) {
-    logger.error("更新消息发送记录及日志失败", error);
+    logger.error("发送消息重试失败", error);
+    throw new Error("发送消息重试失败", error);
   }
 }

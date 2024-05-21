@@ -2,7 +2,7 @@
   "apiID": "one_store__c__function_aadgjmcdgj2as",
   "apiName": "ChatMemberListGet",
   "label": {
-    "zh_CN": "获取群成员列表",
+    "zh_CN": "暂时废弃-获取群成员列表",
     "en_US": ""
   },
   "description": {
