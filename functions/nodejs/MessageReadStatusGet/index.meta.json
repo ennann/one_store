@@ -1,0 +1,35 @@
+{
+  "apiID": "one_store__c__function_aadgjmfa3r4dw",
+  "apiName": "MessageStatusMemberGet",
+  "label": {
+    "zh_CN": "获取群消息已读未读人员",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [],
+  "output": [
+    {
+      "key": "read_user_ids",
+      "type": "List",
+      "label": "已读人员ID列表",
+      "description": "",
+      "listItem": {
+        "type": "Text"
+      }
+    },
+    {
+      "key": "unread_user_list",
+      "type": "List",
+      "label": "未读人员ID列表",
+      "description": "",
+      "listItem": {
+        "type": "Text"
+      }
+    }
+  ]
+}

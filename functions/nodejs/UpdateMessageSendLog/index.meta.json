@@ -1,8 +1,8 @@
 {
   "apiID": "one_store__c__function_aadgiwwhl6mhy",
-  "apiName": "UpdateMessageSendLog",
+  "apiName": "MessageSendRecordCreate",
   "label": {
-    "zh_CN": "创建消息发送日志",
+    "zh_CN": "创建消息发送记录",
     "en_US": ""
   },
   "description": {
@@ -13,33 +13,30 @@
   "frontendSDKInvokable": false,
   "input": [
     {
-      "key": "sendMessageResult",
-      "type": "JSON",
+      "key": "message_send_result",
+      "type": "List",
       "label": "消息发送结果",
       "required": true,
-      "description": ""
+      "description": "",
+      "listItem": {
+        "type": "JSON"
+      }
     },
     {
-      "key": "send_record",
+      "key": "message_send_batch",
       "type": "Record",
-      "label": "消息发送记录",
+      "label": "消息发送批次",
       "required": true,
       "description": "",
       "objectApiName": "object_message_send"
     },
     {
-      "key": "message_type",
-      "type": "Text",
-      "label": "消息类型",
+      "key": "message_define",
+      "type": "Record",
+      "label": "消息定义",
       "required": true,
-      "description": ""
-    },
-    {
-      "key": "receive_id_type",
-      "type": "Text",
-      "label": "receive_id_type",
-      "required": true,
-      "description": ""
+      "description": "",
+      "objectApiName": "object_chat_message_def"
     }
   ],
   "output": []
