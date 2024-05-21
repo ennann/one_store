@@ -181,7 +181,7 @@ module.exports = async function (params, context, logger) {
       throw new Error("缺少消息类型");
     }
     const content = await getContent(record.option_message_type)
-    const receive_id_type = record.send_channel === "option_group" ? "chat_id" : "open_id";
+    const receive_id_type = record.send_channel === "option_group" ? "chat_id" : "user_id";
     logger.info({ content });
     return {
       ...content,

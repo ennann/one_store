@@ -1,0 +1,31 @@
+{
+    "apiID": "one_store__c__function_aadgjrhrw4aau",
+    "apiName": "GroupSetAdmin",
+    "label": {
+        "zh_CN": "设置用户为群管理员",
+        "en_US": "Set User as Group Admin"
+    },
+    "description": {
+        "zh_CN": "传入群ID和用户ID，设置用户为群管理员",
+        "en_US": "Set user as group admin by passing in group ID and user ID"
+    },
+    "longTaskMode": false,
+    "frontendSDKInvokable": false,
+    "input": [
+        {
+            "type": "Text",
+            "key": "chat_id",
+            "label": "群ID",
+            "description": "群ID",
+            "required": true
+        },
+        {
+            "type": "Text",
+            "key": "user_id",
+            "label": "飞书用户ID",
+            "description": "用户ID",
+            "required": true
+        }
+    ],
+    "output": []
+}
