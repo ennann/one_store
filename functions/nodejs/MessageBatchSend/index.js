@@ -29,6 +29,7 @@ module.exports = async function (params, context, logger) {
             logger.info('创建消息发送批次成功', res);
             return res._id;
         } catch (error) {
+            logger.error('创建消息发送批次失败', error);
             throw new Error('创建消息发送批次失败', error);
         }
     };
