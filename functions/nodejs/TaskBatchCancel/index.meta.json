@@ -1,0 +1,25 @@
+{
+    "apiID": "one_store__c__function_aadgjqz6croas",
+    "apiName": "TaskBatchCancel",
+    "label": {
+        "zh_CN": "任务批量取消",
+        "en_US": "Task Batch Cancel"
+    },
+    "description": {
+        "zh_CN": "根据任务的批次记录，批量取消任务",
+        "en_US": "Batch cancel tasks according to the batch record of tasks"
+    },
+    "longTaskMode": false,
+    "frontendSDKInvokable": false,
+    "input": [
+        {
+            "key": "task_create_monitor",
+            "type": "Record",
+            "required": true,
+            "label": "任务处理记录",
+            "description": "",
+            "objectApiName": "object_task_create_monitor"
+        }
+    ],
+    "output": []
+}

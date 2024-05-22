@@ -88,7 +88,7 @@ module.exports = async function (params, context, logger) {
         //         'option_priority', //优先级(全局选项)：高:option_01，中:option_02，低:option_03
         //         'option_upload_image', //任务要求上传图片
         //         'option_input_information', //任务要求录入完成信息
-        //         'option_upload_attachement', //任务要求上传附件
+        //         'option_upload_attachment', //任务要求上传附件
         //         'is_workday_support', //是否支持工作日历 布尔
         //         'warning_time', //设置预警时间（小时）
         //         'set_warning_time' //设置任务到期前提醒
@@ -128,7 +128,7 @@ module.exports = async function (params, context, logger) {
                 {
                     "tag": "div",
                     "text": {
-                        "content": "任务下发时间：" + dayjs(objectStoreTaskElement.task_create_time).format('YYYY-MM-DD HH:mm:ss'),
+                        "content": "任务下发时间：" + dayjs(objectStoreTaskElement.task_create_time).add(8,"hour").format('YYYY-MM-DD HH:mm:ss'),
                         "tag": "plain_text"
                     }
                 },
@@ -189,30 +189,32 @@ module.exports = async function (params, context, logger) {
             const feishuPeople = await application.data.object('_user')
                 .select('_id', "_department", "_lark_user_id")
                 .where({_id: objectStoreTaskElement.task_handler._id}).findOne();
+            content.header.title.content = "【任务到期提醒】" + feishuPeople._name.find(item => item.language_code === 2052).text + "有一条" + objectStoreTaskElement.name + "门店任务请尽快处理！";
+            data.content = JSON.stringify(content);
             //判断是群组发送（查询所在部门的门店群）还是机器人（机器人直发）发送
             let object_task_def = await application.data.object("object_task_def")
                 .select("_id", "send_channel")
                 .where({_id: objectStoreTaskElement.task_def._id || objectStoreTaskElement.task_def.id}).findOne();
             if (object_task_def.send_channel === "option_group") {
-                data.receive_id_type = "chat_id"
                 // logger.info("通过用户获取部门----->",JSON.stringify(user,null,2));
                 //通过部门ID获取飞书群ID
                 let object_feishu_chat = await application.data.object("object_feishu_chat")
                     .select("_id", "chat_id")
                     .where({department: feishuPeople._department._id || feishuPeople._department.id}).findOne();
                 if (object_feishu_chat){
+                    data.receive_id_type = "chat_id"
                     data.receive_id = object_feishu_chat.chat_id
                     messageCardSendDatas.push(data);
                 }else{
                     logger.warn(`该用户[${feishuPeople._id}]的部门飞书群不存在`)
+                    data.receive_id_type = "user_id"
+                    data.receive_id = feishuPeople._lark_user_id;
                 }
             } else {
                 data.receive_id_type = "user_id"
                 data.receive_id = feishuPeople._lark_user_id;
-                content.header.title.content = "【任务到期提醒】" + feishuPeople._name.find(item => item.language_code === 2052).text + "有一条" + objectStoreTaskElement.name + "门店任务请尽快处理！";
-                data.content = JSON.stringify(content);
-                messageCardSendDatas.push(data);
             }
+            messageCardSendDatas.push(data);
         }
     }
     //创建限流器

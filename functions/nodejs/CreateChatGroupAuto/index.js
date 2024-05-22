@@ -13,6 +13,8 @@ const {convertRecordsToGroupMenu} = require("../GroupMenuUtils/groupMenuConstruc
 module.exports = async function (params, context, logger) {
     // 日志功能
     logger.info(`${new Date()} 创建群后函数开始执行`);
+    logger.info("创建群信息的入参：",params);
+
     const {feishu_chat} = params;
     const feishu_chat_id = feishu_chat.chat_id;
     let feishuChatId = feishu_chat._id;
@@ -75,8 +77,12 @@ module.exports = async function (params, context, logger) {
             }
         }
     }
-    // 获取群置顶
-    const feishu_pins = await application.data.object('object_chat_pin').select('pin_name', 'pin_url', 'chat_rule', '_id').find();
+    // 获取全部群的群置顶数据
+    const feishu_pins = await application.data.object('object_chat_pin')
+    .select('pin_name', 'pin_url', 'chat_rule', '_id')
+    .where({"all_chats": "option_yes"})
+    .find();
+
     logger.info("群置顶记录：" + JSON.stringify(feishu_pins, null, 2));
 
     for (const feishu_pin of feishu_pins) {
@@ -122,8 +128,12 @@ module.exports = async function (params, context, logger) {
             }
         }
     }
-    // 获取群菜单分类
-    const feishu_chat_menu_catalogs = await application.data.object('object_chat_menu_catalog').select('name', 'description', 'chat_rule', '_id').find();
+    // 获取为全部群的群菜单分类 -> 只需要获取到的第一条
+    const feishu_chat_menu_catalogs = await application.data.object('object_chat_menu_catalog')
+    .select('name', 'description', 'chat_rule', '_id')
+    .where({'all_chats': "option_yes"})
+    .find();
+
     logger.info("群菜单分类记录：" + JSON.stringify(feishu_chat_menu_catalogs, null, 2));
     for (const feishu_chat_menu_catalog of feishu_chat_menu_catalogs) {
         const feishu_chat_menu_catalog_id = feishu_chat_menu_catalog._id;
@@ -199,6 +209,7 @@ module.exports = async function (params, context, logger) {
                     logger.error(loop_logs);
                 }
             }
+            break
         }
     }
 }

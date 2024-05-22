@@ -21,8 +21,8 @@ module.exports = async function (params, context, logger) {
   }
 
   const ruleRecord = await application.data
-    .object("object_user_rule")
-    .select(["_id", "job_position", "department", "work_team"])
+    .object('object_user_rule')
+    .select(['_id', 'job_position', 'department', 'work_team'])
     .where({ _id: user_rule._id || user_rule.id })
     .findOne();
   logger.info('object_user_rule', JSON.stringify(ruleRecord, null, 2));
@@ -32,12 +32,12 @@ module.exports = async function (params, context, logger) {
       const userRecords = [];
       await application.data
         .object('_user')
-        .select('_id', '_email', "_phoneNumber")
+        .select('_id', '_email', '_phoneNumber', '_lark_user_id')
         .where(query)
         .findStream(async records => {
-          userRecords.push(...records.map(item => ({ _id: item._id, email: item._email, mobile: item._phoneNumber?.number })));
+          userRecords.push(...records);
         });
-      return userRecords
+      return userRecords;
     } catch (error) {
       logger.error(`${description}查询时发生错误：`, error);
       return userList;
@@ -45,17 +45,14 @@ module.exports = async function (params, context, logger) {
   };
 
   // 获取部门多层级下的人员
-  const getDepartmentUser = async (ids) => {
+  const getDepartmentUser = async ids => {
     const list = [];
-    const users = await getUserRecord(
-      { _department: { _id: application.operator.hasAnyOf(ids) } },
-      '所属部门'
-    );
+    const users = await getUserRecord({ _department: { _id: application.operator.hasAnyOf(ids) } }, '所属部门');
     list.push(...users);
     // 获取以当前部门为上级部门的子部门
     const childDepartment = await application.data
       .object('_department')
-      .select("_id")
+      .select('_id')
       .where({ _superior: { _id: application.operator.hasAnyOf(ids) } })
       .find();
     logger.info({ childDepartment });
@@ -64,7 +61,7 @@ module.exports = async function (params, context, logger) {
       list.push(...childDepartmentUsers);
     }
     return list;
-  }
+  };
 
   // 获取所属部门下的人员
   if (ruleRecord.department && ruleRecord.department.length > 0) {
@@ -79,17 +76,14 @@ module.exports = async function (params, context, logger) {
     const teamIds = ruleRecord.work_team.map(item => item._id);
     const teamUserList = await application.data
       .object('object_user_group_member')
-      .select("user")
+      .select('user')
       .where({
         user_group: {
-          _id: application.operator.hasAnyOf(teamIds)
-        }
+          _id: application.operator.hasAnyOf(teamIds),
+        },
       })
       .find();
-    const users = await getUserRecord(
-      { _id: application.operator.hasAnyOf(teamUserList.map(item => item.user._id)) },
-      '所属用户组'
-    );
+    const users = await getUserRecord({ _id: application.operator.hasAnyOf(teamUserList.map(item => item.user._id)) }, '所属用户组');
     logger.info({ teamUsers: users });
     userList.push(...users);
   }
@@ -99,37 +93,36 @@ module.exports = async function (params, context, logger) {
   logger.info({ userList });
 
   if (userList.length === 0) {
-    logger.error("通过人员筛选条件获取人员列表为空");
+    logger.error('通过人员筛选条件获取人员列表为空');
     return [];
   }
 
-  // 获取人员信息
-  const getUserInfo = async (user) => {
-    try {
-      const query = user.mobile
-        ? { _phoneNumber: application.operator.contain(user.mobile) }
-        : { _email: application.operator.contain(user.email) };
-      const res = await application.data.object("_user")
-        .select("_id", "_name", "_email", "_phoneNumber", "_lark_user_id")
-        .where(query)
-        .findOne();
-      return {
-        ...res,
-        user_id: res._lark_user_id
-      };
-    } catch (error) {
-      logger.error("通过人员筛选条件获取人员失败");
-    }
-  };
+  return userList.map(item => ({
+    ...item,
+    user_id: item._lark_user_id
+  }));
 
-  try {
-    const list = userList.filter(item => !!item.email || !!item.mobile)
-      .map(item => getUserInfo(item));
-    const resList = await Promise.all(list);
-    logger.info(resList);
-    return resList;
-  } catch (error) {
-    logger.error("获取人员失败", error);
-    throw new Error("获取人员失败", error);
-  }
-}
+  // 获取人员信息
+  // const getUserInfo = async user => {
+  //     try {
+  //         const query = user.mobile ? { _phoneNumber: application.operator.contain(user.mobile) } : { _email: application.operator.contain(user.email) };
+  //         const res = await application.data.object('_user').select('_id', '_name', '_email', '_phoneNumber', '_lark_user_id').where(query).findOne();
+  //         return {
+  //             ...res,
+  //             user_id: res._lark_user_id,
+  //         };
+  //     } catch (error) {
+  //         logger.error('通过人员筛选条件获取人员失败');
+  //     }
+  // };
+
+  // try {
+  //     const list = userList.filter(item => !!item.email || !!item.mobile).map(item => getUserInfo(item));
+  //     const resList = await Promise.all(list);
+  //     logger.info(resList);
+  //     return resList;
+  // } catch (error) {
+  //     logger.error('获取人员失败', error);
+  //     throw new Error('获取人员失败', error);
+  // }
+};

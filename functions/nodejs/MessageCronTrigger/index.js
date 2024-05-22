@@ -42,6 +42,7 @@ module.exports = async function (params, context, logger) {
             ),
         )
         .find();
+    if (messageDefineRecords.length == 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
 
     logger.info('查询到的消息定义数量->', messageDefineRecords.length);
     logger.info(messageDefineRecords);
@@ -137,4 +138,4 @@ module.exports = async function (params, context, logger) {
         successList,
         failList,
     };
-};
+};  

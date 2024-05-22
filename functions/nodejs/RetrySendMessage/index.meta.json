@@ -15,7 +15,7 @@
     {
       "key": "record",
       "type": "Record",
-      "label": "消息发送记录",
+      "label": "消息发送批次",
       "required": true,
       "description": "",
       "objectApiName": "object_message_send"
@@ -23,4 +23,3 @@
   ],
   "output": []
 }
-

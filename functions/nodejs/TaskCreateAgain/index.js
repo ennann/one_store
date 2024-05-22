@@ -51,14 +51,14 @@ module.exports = async function (params, context, logger) {
             'option_priority', //优先级(全局选项)：高:option_01，中:option_02，低:option_03
             'option_upload_image', //任务要求上传图片
             'option_input_information', //任务要求录入完成信息
-            'option_upload_attachement', //任务要求上传附件
+            'option_upload_attachment', //任务要求上传附件
             'is_workday_support', //是否支持工作日历 布尔
             'warning_time', //设置预警时间（小时）
             'set_warning_time' //设置任务到期前提醒
         )
         .where({_id: object_task_create_monitor.task_def._id || object_task_create_monitor.task_def.id}).findOne();
     // task 代表任务处理记录
-    const createDatas = [];
+    const createDataList = [];
     let task_plan_time = dayjs(object_task_create_monitor.task_create_time).add(0, 'day').valueOf();
     logger.info(`任务定义->`, JSON.stringify(object_task_def, null, 2));
     if (!object_task_def.deal_duration) {
@@ -86,9 +86,9 @@ module.exports = async function (params, context, logger) {
                 task_create_time: object_task_create_monitor.task_create_time, //任务创建时间
                 task_plan_time: task_plan_time,  //要求完成时间 ===  开始时间 + 任务处理时长
                 is_overdue: "option_no",  //是否超期
-                option_upload_imagede: object_task_def.option_upload_image,  //任务要求上传图片
-                option_input_informationdd: object_task_def.option_input_information,  //任务要求录入完成信息
-                option_upload_attachementdd: object_task_def.option_upload_attachement,  //任务要求上传附件
+                option_upload_image: object_task_def.option_upload_image,  //任务要求上传图片
+                option_input_information: object_task_def.option_input_information,  //任务要求录入完成信息
+                option_upload_attachment: object_task_def.option_upload_attachment,  //任务要求上传附件
                 set_warning_time: object_task_def.set_warning_time,  //是否设置任务到期前提醒
                 warning_time: object_task_def.warning_time,  //预警时间（小时）
                 source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
@@ -102,7 +102,7 @@ module.exports = async function (params, context, logger) {
             if (feishu_chat) {
                 createData.deal_department = {_id: feishu_chat.department._id} //任务所属部门
             }
-            createDatas.push(createData);
+            createDataList.push(createData);
         }
     } else if (object_task_def.option_handler_type === "option_02") {
         //人员塞选规则
@@ -119,9 +119,9 @@ module.exports = async function (params, context, logger) {
                 task_create_time: object_task_create_monitor.task_create_time, //任务创建时间
                 task_plan_time: task_plan_time,  //要求完成时间 ===  开始时间 + 任务处理时长
                 is_overdue: "option_no",  //是否超期
-                option_upload_imagede: object_task_def.option_upload_image,  //任务要求上传图片
-                option_input_informationdd: object_task_def.option_input_information,  //任务要求录入完成信息
-                option_upload_attachementdd: object_task_def.option_upload_attachement,  //任务要求上传附件
+                option_upload_image: object_task_def.option_upload_image,  //任务要求上传图片
+                option_input_information: object_task_def.option_input_information,  //任务要求录入完成信息
+                option_upload_attachment: object_task_def.option_upload_attachment,  //任务要求上传附件
                 set_warning_time: object_task_def.set_warning_time,  //是否设置任务到期前提醒
                 warning_time: object_task_def.warning_time,  //预警时间（小时）
                 source_department: {_id: department_record._id, _name: department_record._name}, //任务来源
@@ -133,13 +133,13 @@ module.exports = async function (params, context, logger) {
             const user = await application.data.object("_user")
                 .select("_id", "_department").where({_id: userListElement._id}).findOne();
             createData.deal_department = {_id: user._department._id} //任务所属部门
-            createDatas.push(createData);
+            createDataList.push(createData);
         }
     }
-    logger.info(`需要为任务处理记录[${object_task_create_monitor._id}]创建的门店普通任务数量->`, createDatas.length);
+    logger.info(`需要为任务处理记录[${object_task_create_monitor._id}]创建的门店普通任务数量->`, createDataList.length);
 
-    if (createDatas.length > 0) {
-        const storeTaskCreateResults = await Promise.all(createDatas.map(object_store_task => createStoreTaskEntryStart(object_store_task, logger)));
+    if (createDataList.length > 0) {
+        const storeTaskCreateResults = await Promise.all(createDataList.map(object_store_task => createStoreTaskEntryStart(object_store_task, logger)));
         const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
         const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
         logger.info(`为任务处理记录[${object_task_create_monitor._id}]创建门店普通任务成功数量: ${successfulStoreTasks.length}, 失败数量: ${failedStoreTasks.length}`);
@@ -291,7 +291,7 @@ async function createStoreTaskEntryStart(object_store_task, logger) {
                     {
                         "tag": "div",
                         "text": {
-                            "content": "任务下发时间：" + dayjs(object_store_task.task_create_time).format('YYYY-MM-DD HH:mm:ss'),
+                            "content": "任务下发时间：" + dayjs(object_store_task.task_create_time).add(8, "hour").format('YYYY-MM-DD HH:mm:ss'),
                             "tag": "plain_text"
                         }
                     },
@@ -348,34 +348,31 @@ async function createStoreTaskEntryStart(object_store_task, logger) {
                 let feishuPeople = await application.data.object("_user")
                     .select("_id", "_department", "_lark_user_id")
                     .where({_id: object_store_task.task_handler._id || object_store_task.task_handler.id}).findOne();
+                content.header.title.content = "【任务发布】" + feishuPeople._name.find(item => item.language_code === 2052).text + "有一条" + object_store_task.name + "门店任务请尽快处理！";
+                data.content = JSON.stringify(content);
                 // 判断是群组发送（查询所在部门的门店群）还是机器人（机器人直发）发送
                 let object_task_def = await application.data.object("object_task_def")
                     .select("_id", "send_channel")
                     .where({_id: object_store_task.task_def._id || object_store_task.task_def.id}).findOne();
 
                 if (object_task_def.send_channel === "option_group") {
-                    data.receive_id_type = "chat_id"
                     //通过部门ID获取飞书群ID
                     let object_feishu_chat = await application.data.object("object_feishu_chat")
                         .select("_id", "chat_id")
                         .where({department: feishuPeople._department._id || feishuPeople._department.id}).findOne();
                     if (!object_feishu_chat) {
                         logger.warn(`该用户[${feishuPeople._id}]的部门飞书群不存在`);
-                        return {
-                            code: 0,
-                            message: `创建门店普通任务成功&组装门店普通任务[${object_store_task._id}]发送消息卡片失败`,
-                            messageCardSendData: {}
-                        };
+                        data.receive_id_type = "user_id"
+                        data.receive_id = feishuPeople._lark_user_id;
+                    }else{
+                        data.receive_id_type = "chat_id"
+                        data.receive_id = object_feishu_chat.chat_id
                     }
-                    data.receive_id = object_feishu_chat.chat_id
                 } else {
                     data.receive_id_type = "user_id"
                     data.receive_id = feishuPeople._lark_user_id;
-                    content.header.title.content = "【任务发布】" + feishuPeople._name.find(item => item.language_code === 2052).text + "有一条" + object_store_task.name + "门店任务请尽快处理！";
-                    data.content = JSON.stringify(content);
                 }
             }
-
             return {code: 0, message: '创建门店普通任务成功', storeTaskId: storeTaskId, messageCardSendData: data};
 
         } catch (error) {

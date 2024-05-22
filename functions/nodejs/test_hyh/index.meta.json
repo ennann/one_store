@@ -1,0 +1,16 @@
+{
+  "apiID": "one_store__c__function_aadgjvscubofw",
+  "apiName": "test_hyh",
+  "label": {
+    "zh_CN": "test_hyh",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "hyh-测试",
+    "en_US": ""
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [],
+  "output": []
+}

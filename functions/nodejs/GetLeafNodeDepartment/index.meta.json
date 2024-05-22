@@ -1,0 +1,31 @@
+{
+  "apiID": "one_store__c__function_aadgjw4bc6wmg",
+  "apiName": "GetLeafNodeDepartment",
+  "label": {
+    "zh_CN": "获取叶子节点部门",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "获取叶子节点部门",
+    "en_US": ""
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "depId",
+      "type": "Text",
+      "label": "部门id",
+      "required": true,
+      "description": ""
+    }
+  ],
+  "output": [
+    {
+      "key": "isLeafNode",
+      "type": "Boolean",
+      "label": "是否为叶子节点部门",
+      "description": ""
+    }
+  ]
+}

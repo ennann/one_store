@@ -1,6 +1,6 @@
 {
   "apiID": "one_store__c__function_aadgirwlrugfy",
-  "apiName": "CreateFsTask",
+  "apiName": "FsTaskCreate",
   "label": {
     "zh_CN": "飞书任务-创建任务",
     "en_US": ""

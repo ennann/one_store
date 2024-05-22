@@ -46,7 +46,7 @@ module.exports = async function (params, context, logger) {
             'option_priority', //优先级(全局选项)：高:option_01，中:option_02，低:option_03
             'option_upload_image', //任务要求上传图片
             'option_input_information', //任务要求录入完成信息
-            'option_upload_attachement', //任务要求上传附件
+            'option_upload_attachment', //任务要求上传附件
             'is_workday_support', //是否支持工作日历 布尔
             'warning_time', //设置预警时间（小时）
             'set_warning_time', //设置任务到期前提醒

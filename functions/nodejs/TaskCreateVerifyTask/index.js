@@ -18,7 +18,7 @@ module.exports = async function (params, context, logger) {
     // 找到任务定义记录
     let taskDefineRecord = await application.data
         .object('object_task_def')
-        .select('name', 'task_number', 'description', 'option_upload_image', 'option_input_information', 'option_upload_attachement', 'option_is_check', 'check_flow')
+        .select('name', 'task_number', 'description', 'option_upload_image', 'option_input_information', 'option_upload_attachment', 'option_is_check', 'check_flow')
         .where({ _id: store_task.task_def._id || store_task.task_def.id })
         .findOne();
     logger.info('任务定义记录 taskDefineRecord', taskDefineRecord);
