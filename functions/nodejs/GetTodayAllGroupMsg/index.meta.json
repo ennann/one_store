@@ -17,20 +17,15 @@
       "type": "Text",
       "label": "操作标识",
       "required": true,
-      "description": "1-校验是否超过最大数\n2-更新当天最大记录数"
+      "description": "x-校验是否超过最大数\ny-更新当天最大记录数"
     }
   ],
   "output": [
     {
       "key": "outFlag",
-      "type": "JSON",
+      "type": "Boolean",
       "label": "输出标识",
-      "description": "",
-      "schema": {
-        "code": "",
-        "msg": "",
-        "data": ""
-      }
+      "description": ""
     }
   ]
 }

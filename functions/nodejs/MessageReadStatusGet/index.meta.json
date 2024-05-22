@@ -2,7 +2,7 @@
   "apiID": "one_store__c__function_aadgjmfa3r4dw",
   "apiName": "MessageStatusMemberGet",
   "label": {
-    "zh_CN": "获取群消息已读未读人员",
+    "zh_CN": "暂时废弃-获取群消息已读未读人员",
     "en_US": ""
   },
   "description": {

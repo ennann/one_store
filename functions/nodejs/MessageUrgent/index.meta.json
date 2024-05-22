@@ -18,6 +18,23 @@
       "label": "加急类型",
       "required": true,
       "description": "传参：urgentApp-应用加急，urgentSms-短信加急，urgentPhone-电话加急"
+    },
+    {
+      "key": "message_id",
+      "type": "Text",
+      "label": "消息ID",
+      "required": true,
+      "description": ""
+    },
+    {
+      "key": "user_id_list",
+      "type": "List",
+      "label": "人员ID列表",
+      "required": true,
+      "description": "",
+      "listItem": {
+        "type": "Text"
+      }
     }
   ],
   "output": []

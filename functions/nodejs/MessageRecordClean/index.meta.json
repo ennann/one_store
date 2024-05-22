@@ -1,8 +1,8 @@
 {
-  "apiID": "one_store__c__function_aadgjsmiec4ii",
-  "apiName": "MessageReadUpdate",
+  "apiID": "one_store__c__function_aadgjw6ec7eba",
+  "apiName": "MessageRecordClean",
   "label": {
-    "zh_CN": "更新消息已读数量",
+    "zh_CN": "清理消息记录",
     "en_US": ""
   },
   "description": {

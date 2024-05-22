@@ -12,6 +12,8 @@
  module.exports = async function (params, context, logger) {
   // 日志功能
   // logger.info(`${new Date()} 函数开始执行`);
+  logger.info("入参", params);
+
   // 当天最大全部群发送数
   const MAX_ALL_MSG_NUM = 5;
 
@@ -21,24 +23,27 @@
 
    // 获取redis中当天发送全部群的消息数 
    const msgCount = await baas.redis.get(today)
+   logger.info('当前已发全部群信息数:',msgCount);
 
   // 获取操作类型  1-校验是否超过最大数 2-更新当天最大记录数
   const operateFlag = params.operateFlag;
-  if (operateFlag === 1) {
+  logger.info('当前操作类型：',operateFlag);
+
+  if (operateFlag === "X") {
       if (msgCount >= MAX_ALL_MSG_NUM) {
-          return false;
+          return {outFlag:false};
       } else {
-          return true;
+          return {outFlag:true};
       }
-  } else if (operateFlag === 2) {
+  } else if (operateFlag === "Y") {
       if(msgCount){
         await baas.redis.setex(today,24*60*60,msgCount+1);
       }else{
         await baas.redis.setex(today,24*60*60,1);
       }
-      return true
+      return {outFlag:true}
   }else {
-    return false;
+    return {outFlag:false};
   }
 }
 
