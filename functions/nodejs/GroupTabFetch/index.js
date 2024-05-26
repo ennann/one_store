@@ -8,10 +8,6 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-
-  logger.info("开始执行函数\n", JSON.stringify({ timestamp: new Date(), user: context.user._id }, null, 2));
-  logger.info(params);
-
   let response = {
     code: 0,
     message: "",
@@ -29,12 +25,8 @@ module.exports = async function (params, context, logger) {
 
   try {
     let chat_tab_list = await client.im.chatTab.listTabs({
-      path: {
-        chat_id: params.chat_id,
-      },
+      path: { chat_id: params.chat_id },
     });
-
-    logger.info("获取群置顶标签列表成功", { chat_tab_list });
 
     response.data = chat_tab_list; // Assuming chat_tab_list is the object to be returned
     response.message = "群置顶标签列表获取成功";
@@ -44,8 +36,5 @@ module.exports = async function (params, context, logger) {
     response.message = "获取群置顶标签列表失败: " + error.message;
   }
 
-  logger.info("函数执行完毕", JSON.stringify(response, null, 2));
-
   return response;
-
 }

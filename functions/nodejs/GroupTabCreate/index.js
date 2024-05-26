@@ -9,10 +9,6 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-
-    logger.info("开始执行函数\n", JSON.stringify({ timestamp: new Date(), user: context.user._id }, null, 2));
-    logger.info(params);
-
     let response = {
         code: 0,
         message: ""
@@ -37,7 +33,6 @@ module.exports = async function (params, context, logger) {
 
     // 清理pin_url中的换行和空格
     pin_url = pin_url.replace(/[\n\s]/g, '');
-    logger.info('处理后的URL：', pin_url);
 
     let client = await newLarkClient({ userId: context.user._id }, logger);
     let image_key = null;

@@ -8,8 +8,6 @@ const { newLarkClient, createLimiter, fetchEmailsByUserId, batchOperation,fetchU
  * @return The resulting data from the function
  */
 module.exports = async function (params, context, logger) {
-    logger.info('开始执行查询飞书用户组成员函数', { timestamp: new Date(), user: context.user._id });
-
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
     let all_user_group = await fetchFeishuUserGroups(logger);
@@ -55,12 +53,8 @@ module.exports = async function (params, context, logger) {
 
     let feishuUserGroup = await Promise.all(memberFetchPromises);
 
-    logger.info('用户组成员查询完成');
-    logger.info(JSON.stringify(feishuUserGroup, null, 2));
     feishuUserGroup = await updateUserGroupDetails(feishuUserGroup, logger);
 
-    logger.info('用户组数据更新完成', JSON.stringify(feishuUserGroup, null, 2));
-    logger.info('开始更新用户组成员数据');
     await updateUserGroupMember(feishuUserGroup, logger);
 
     return feishuUserGroup;
@@ -86,7 +80,6 @@ async function fetchFeishuUserGroups(logger) {
                 type: 1,
             },
         })) {
-            // logger.info('接收到群组批次数据长度：', item.grouplist.length);
             allGroups.push(...item.grouplist);
         }
     } catch (error) {
@@ -95,7 +88,6 @@ async function fetchFeishuUserGroups(logger) {
         return []; // Return an empty array to indicate failure or no data retrieved.
     }
 
-    logger.info('查询到的所有群组：', allGroups.length);
     return allGroups;
 }
 
@@ -114,7 +106,6 @@ async function updateUserGroupDetails(feishuUserGroup, logger) {
         .select(['name', 'description', 'feishu_group_id'])
         .where({ is_from_feishu: true, feishu_group_id: application.operator.in(group_ids) })
         .find();
-    logger.info('在 aPaaS 查询到的用户组数量：', apaas_group_records.length);
 
     // 对于 feishuUserGroup 已经存在的用户组，更新用户组描述；对于不存在的用户组，创建新用户组
     let batchUpdateRecords = [];
@@ -142,19 +133,14 @@ async function updateUserGroupDetails(feishuUserGroup, logger) {
         }
     }
 
-    logger.info('需要更新的用户组数量：', batchUpdateRecords.length, '需要创建的用户组数量：', batchCreateRecords.length);
 
     if (batchUpdateRecords.length > 0) {
-        logger.info('开始更新用户组数据', JSON.stringify(batchUpdateRecords, null, 2));
         let results = await application.data.object('object_user_group').batchUpdate(batchUpdateRecords);
-        // logger.info('用户组数据更新完成, results', results);
     }
 
     if (batchCreateRecords.length > 0) {
-        logger.info('开始创建用户组数据', JSON.stringify(batchCreateRecords, null, 2));
         let results = await application.data.object('object_user_group').batchCreate(batchCreateRecords);
         // results 数据的示例 [ 1212212, 2312323232, 12131313] 为创建的记录的 _id 列表
-        logger.info('用户组数据创建完成, results', results);
 
         // 在 batchCreateRecords 内增加 _id 属性，作为后续更新用户组成员数据使用
         batchCreateRecords.forEach((record, index) => {
@@ -168,7 +154,6 @@ async function updateUserGroupDetails(feishuUserGroup, logger) {
         });
     }
 
-    logger.info('用户组数据更新完成, feishuUserGroup', feishuUserGroup);
 
     return feishuUserGroup;
 }
@@ -187,14 +172,12 @@ async function updateUserGroupMember(feishuUserGroup, logger) {
             let user_id_list = member_list.map(member => member.member_id);
 
             if (user_id_list.length === 0) {
-                logger.info('No user IDs available, skipping operations for', _id);
                 return;
             }
             // 根据飞书userId值获取用户邮箱  ----> 原逻辑
             // let user_email_list = await fetchEmailsByUserId(user_id_list);
 
             // if (user_email_list.length === 0) {
-            //     logger.info('No user emails found, skipping database operations for', _id);
             //     return;
             // }
             // 根据用户的邮箱查询相应的apaas的用户信息
@@ -206,7 +189,6 @@ async function updateUserGroupMember(feishuUserGroup, logger) {
             //     .findStream(records => {
             //         apaas_user_records.push(...records);
             //     });
-            // logger.info('apaas_user_records', apaas_user_records.length);
 
             //-------------------------------------------------  新逻辑
             // 使用for循环 通过id值获取用户信息
@@ -224,11 +206,9 @@ async function updateUserGroupMember(feishuUserGroup, logger) {
                     apaas_user_records.push(...records);
                 });
             }
-          logger.info('获取到的用户列表：',apaas_user_records)
 
             let apaas_user_ids = apaas_user_records.map(record => record._id);
             if (apaas_user_ids.length === 0) {
-                logger.info('No aPaaS user IDs found, skipping member deletion and addition for', _id);
                 return;
             }
 
@@ -253,9 +233,7 @@ async function updateUserGroupMember(feishuUserGroup, logger) {
                     user_group: { _id },
                     user: { _id: apaas_user_records.find(record => record._id === user_id)._id },
                 }));
-                logger.info('开始创建用户组成员数据', JSON.stringify(batchCreateRecords, null, 2));
                 let results = await application.data.object('object_user_group_member').batchCreate(batchCreateRecords);
-                logger.info('用户组成员数据创建完成, results', results);
             }
         } catch (error) {
             logger.error('An error occurred while updating group member details for group ' + group._id, error);
@@ -264,5 +242,4 @@ async function updateUserGroupMember(feishuUserGroup, logger) {
 
     let updateGroupMemberPromises = feishuUserGroup.map(updateGroupMember);
     await Promise.all(updateGroupMemberPromises).catch(error => logger.error('Error processing group member updates:', error));
-    logger.info('All group updates processed.');
 }

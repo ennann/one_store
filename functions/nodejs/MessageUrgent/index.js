@@ -11,9 +11,6 @@ const { newLarkClient, createLimiter, chunkArray } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`消息加急 ${new Date()} 函数开始执行`, params);
-
   const urgentTypes = ["urgentApp", "urgentSms", "urgentPhone"];
 
   if (!params.urgent_type || !params.user_id_list || !params.message_id) {
@@ -25,7 +22,7 @@ module.exports = async function (params, context, logger) {
   }
 
   if (params.user_id_list.length === 0) {
-    logger.info("消息发送人员列表为空，中断函数");
+    logger.error("消息发送人员列表为空，中断函数");
     return;
   }
 
@@ -74,10 +71,9 @@ module.exports = async function (params, context, logger) {
       }
       return pre;
     }, { successRes: [], failRes: [] });
-    logger.info(`加急人员消息总数：${user_id_list.length}，成功数量：${successRes.length}，失败数量：${failRes.length}`)
     return { code: failRes.length === user_id_list.length ? -1 : 0 };
   } catch (error) {
-    logger.info(`消息加急失败`, error);
+    logger.error(`消息加急失败`, error);
     return { code: -1 };
   }
 }

@@ -13,13 +13,6 @@
   "frontendSDKInvokable": false,
   "input": [
     {
-      "key": "urgent_type",
-      "type": "Text",
-      "label": "加急类型",
-      "required": true,
-      "description": ""
-    },
-    {
       "key": "batch_record",
       "type": "Record",
       "label": "消息发送批次",

@@ -38,23 +38,21 @@ module.exports = async function (params, context, logger) {
   try {
     const useIds = object_feishu_chat.chat_managers.map(item => item._id)
     const userList = await application.data.object("_user")
-    .where({
-      _id: application.operator.in(useIds.join(","))
-    })
-    .select('_email').find();
+      .where({
+        _id: application.operator.in(useIds.join(","))
+      })
+      .select('_email').find();
     const emails = userList.map(item => item._email);
-
-    logger.info({useIds, emails})
 
     //获取open_id
     const { data } = await getOpenIdByEmailsOrMobiles(emails, [], logger)
     const open_ids = data.user_list.map(item => item.user_id);
 
     //设置管理员
-    try{
+    try {
       await faas.function('CreateChatAdmin').invoke({ chat_id, open_ids });
-      return { res, chat_id, open_ids,  }
-    }catch(error){
+      return { res, chat_id, open_ids, }
+    } catch (error) {
       res.code = -1
       res.message = error
       throw new Error({ res, chat_id, open_ids, error })

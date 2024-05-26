@@ -11,9 +11,6 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`更新Apaas任务状态 函数开始执行`);
-
   const undoneList = [];
   await application.data
     .object("object_store_task")
@@ -26,14 +23,11 @@ module.exports = async function (params, context, logger) {
       undoneList.push(...records)
     );
 
-  logger.info({ undoneList });
-
   const client = await newLarkClient({ userId: context.user._id }, logger);
   for (const { task_guid, _id } of undoneList) {
     const res = await await client.task.v2.task.get({
       path: { task_guid }
     })
-    logger.info({ res });
     if (res.code === 0) {
       const { task } = res.data;
       if (task?.completed_at) {

@@ -8,7 +8,6 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    logger.info('发送消息卡片函数开始执行', params);
     const { receive_id_type, receive_id, msg_type, content } = params;
     const receiveIdTypes = new Set(['open_id', 'user_id', 'email', 'union_id', 'chat_id']);
 

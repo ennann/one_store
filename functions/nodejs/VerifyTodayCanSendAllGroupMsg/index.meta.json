@@ -1,0 +1,24 @@
+{
+  "apiID": "one_store__c__function_aadgj24accigw",
+  "apiName": "VerifyTodayCanSendAllGroupMsg",
+  "label": {
+    "zh_CN": "校验当天是否可发送全部群信息",
+    "en_US": null
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "isPublicAPI": false,
+  "frontendSDKInvokable": true,
+  "longTaskMode": false,
+  "input": [],
+  "output": [
+    {
+      "key": "outFlag",
+      "type": "Boolean",
+      "label": "是否可以发送标识",
+      "description": ""
+    }
+  ]
+}

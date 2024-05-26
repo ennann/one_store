@@ -7,48 +7,42 @@ const dayjs = require('dayjs');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    // 日志功能
-    logger.info(`[${new Date().toISOString()}] 获取任务编号函数开始执行`);
+  // Response skeleton
+  let response = {
+    code: 0,
+    batch_no: "",
+    batch_progress: "",
+    message: "获取成功"
+  };
 
-    // Response skeleton
-    let response = {
-        code: 0,
-        batch_no: "",
-        batch_progress: "",
-        message: "获取成功"
-    };
+  // Extract task definition from params
+  const { object_task_def } = params;
 
-    // Extract task definition from params
-    const {object_task_def} = params;
-
-    // Log task definition
-    logger.info(`任务定义: ${JSON.stringify(object_task_def, null, 2)}`);
-
-    // Validate task definition presence
-    if (!object_task_def) {
-        response.code = -1;
-        response.message = "缺少必要参数：任务定义数据";
-        return response;
-    }
-
-    try {
-        const object_task_create_monitors = await application.data.object('object_task_create_monitor')
-            .select('_id', 'batch_no')
-            .where({task_def: {_id: object_task_def._id}})
-            .find();
-        const size = object_task_create_monitors.length + 1;
-        let object_task_def_query = await application.data.object('object_task_def')
-            .select('_id', 'task_number')
-            .where({_id: object_task_def._id})
-            .findOne();
-        const newBatchNo = `${(size).toString().padStart(6, '0')}`;
-        response.batch_no = object_task_def_query.task_number + '-' + newBatchNo;
-        // todo 获取当前定义的总批次
-        response.batch_progress = size + '/' + size;
-    } catch (error) {
-        logger.error(`数据库操作失败: ${error}`);
-        response.code = -1;
-        response.message = '内部服务器错误';
-    }
+  // Validate task definition presence
+  if (!object_task_def) {
+    response.code = -1;
+    response.message = "缺少必要参数：任务定义数据";
     return response;
+  }
+
+  try {
+    const object_task_create_monitors = await application.data.object('object_task_create_monitor')
+      .select('_id', 'batch_no')
+      .where({ task_def: { _id: object_task_def._id } })
+      .find();
+    const size = object_task_create_monitors.length + 1;
+    let object_task_def_query = await application.data.object('object_task_def')
+      .select('_id', 'task_number')
+      .where({ _id: object_task_def._id })
+      .findOne();
+    const newBatchNo = `${(size).toString().padStart(6, '0')}`;
+    response.batch_no = object_task_def_query.task_number + '-' + newBatchNo;
+    // todo 获取当前定义的总批次
+    response.batch_progress = size + '/' + size;
+  } catch (error) {
+    logger.error(`数据库操作失败: ${error}`);
+    response.code = -1;
+    response.message = '内部服务器错误';
+  }
+  return response;
 };

@@ -6,9 +6,6 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`生成消息记录批次号 函数开始执行`, params);
-
   const { record } = params;
 
   try {

@@ -9,10 +9,6 @@ const { convertRecordsToGroupMenu } = require('../GroupMenuUtils/groupMenuConstr
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    // logger.info('开始执行创建群功能菜单函数', JSON.stringify({ timestamp: new Date(), user: context.user._id }, null, 2));
-    // logger.info('接收的参数：');
-    // logger.info(params);
-
     const { chat_id, menu_data } = params;
 
     if (!chat_id || !menu_data) {
@@ -40,9 +36,7 @@ module.exports = async function (params, context, logger) {
         //     };
         // }
 
-        // logger.info('查询到的菜单数据', JSON.stringify(chat_menu_records, null, 2));
         // let menu_data = convertRecordsToGroupMenu(chat_menu_records);
-        // logger.info('转换后的菜单数据', JSON.stringify(menu_data, null, 2));
 
         let client = await newLarkClient({ userId: context.user._id }, logger);
 
@@ -53,7 +47,6 @@ module.exports = async function (params, context, logger) {
             data: menu_data,
         });
 
-        // logger.info('群功能菜单创建成功', menu_res);
         return {
             code: 0,
             message: '群功能菜单创建成功',

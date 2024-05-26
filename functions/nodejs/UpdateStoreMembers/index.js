@@ -11,9 +11,6 @@ const { batchOperation } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    // 日志功能
-    logger.info('开始更新门店成员信息');
-
     // 获取所有门店数据
     const allStoreRecords = [];
     await application.data
@@ -23,22 +20,18 @@ module.exports = async function (params, context, logger) {
         .findStream(async records => {
             allStoreRecords.push(...records);
         });
-    logger.info(`获取到门店数据 ${allStoreRecords.length} 条`);
 
     // 获取所有的 store_department
     let storeDepartmentRecords = allStoreRecords.map(record => record.store_department);
-    logger.info(`获取到门店部门数据 ${storeDepartmentRecords.length} 条`);
 
     // 对 storeDepartmentRecords 去重，去重的逻辑是，数组内的对象的 _id 字段相同则认为是相同的对象
     // storeDepartmentRecords = storeDepartmentRecords.filter((department, index, self) => {
     //     return index === self.findIndex(t => t._id === department._id);
     // });
     let departmentIds = storeDepartmentRecords.map(department => department._id);
-    logger.info(`去重后门店部门数据 ${storeDepartmentRecords.length} 条`);
 
     // 对 departmentIds 去重
     departmentIds = Array.from(new Set(departmentIds));
-    logger.info(`去重后门店部门 ID 数据 ${departmentIds.length} 条`, departmentIds);
 
     const allDepartmentRecords = [];
     await application.data
@@ -48,7 +41,6 @@ module.exports = async function (params, context, logger) {
         .findStream(async records => {
             allDepartmentRecords.push(...records);
         });
-    logger.info(`获取到部门数据 ${allDepartmentRecords.length} 条`);
 
     // 定义一个函数，用于查询部门的所有成员
     const getDepartmentMembers = async department => {
@@ -63,9 +55,6 @@ module.exports = async function (params, context, logger) {
 
     // 获取所有的部门成员
     const allDepartmentMembers = await Promise.all(departmentMemberRecords);
-
-    logger.info(`获取到所有部门成员数据 ${allDepartmentMembers.length} 条`);
-    logger.info(JSON.stringify(allDepartmentMembers, null, 2));
 
     // 批量更新门店成员信息,object_store 下的 store_staff 字段，构造批量更新数据
     // 1. 循环 allStoreRecords 数据，allStoreRecords 元素的 _id 是门店记录的 _id
@@ -95,9 +84,6 @@ module.exports = async function (params, context, logger) {
             });
         }
     });
-
-    logger.info(`构造批量更新数据 ${batchUpdateRecords.length} 条`);
-    logger.info(JSON.stringify(batchUpdateRecords, null, 2));
 
     await batchOperation(logger, 'object_store', 'batchUpdate', batchUpdateRecords, 500);
 

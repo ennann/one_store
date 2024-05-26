@@ -1,0 +1,16 @@
+{
+  "apiID": "one_store__c__function_aadgkax7blabs",
+  "apiName": "DoneTaskClean",
+  "label": {
+    "zh_CN": "清理已完成任务",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "定期清理已完成任务（门店普通任务、验收任务、任务发布抄送人）",
+    "en_US": ""
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [],
+  "output": []
+}

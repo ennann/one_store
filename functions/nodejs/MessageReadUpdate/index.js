@@ -11,9 +11,6 @@ const { newLarkClient, createLimiter } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`更新消息已读数量 ${new Date()} 函数开始执行`, params);
-
   const DB = application.data.object;
   const OP = application.operator;
   const BATCH_OBJECT = "object_message_send";
@@ -46,7 +43,6 @@ module.exports = async function (params, context, logger) {
       ...chatMemberIds,
       chat_record.chat_owner._id,
     ]));
-    logger.info({ allMemberIds });
     return allMemberIds;
   };
 
@@ -100,12 +96,9 @@ module.exports = async function (params, context, logger) {
                 read_status: "option_read"
               }))
         );
-        logger.info(`更新消息阅读记录成功，更新数量：${updateReadResult.length}`);
       } else {
-        logger.info(`消息发送记录 ${_id} 下没有需要更新的阅读记录`);
       }
     } else {
-      logger.info(`消息发送记录 ${_id} 下没有已读的人员`);
     }
   };
 
@@ -141,11 +134,9 @@ module.exports = async function (params, context, logger) {
                 : "option_partread"
           }
         }
-        logger.info({ updateRecord });
         await DB(RECORD_OBJECT).update(updateRecord);
         return { code: 0 };
       } else {
-        logger.info(`消息记录 ${_id} 没有已读的人员`);
         return { code: -2 };
       }
     } catch (error) {
@@ -164,10 +155,8 @@ module.exports = async function (params, context, logger) {
         const successRes = result.filter(i => i.code === 0);
         const failRes = result.filter(i => i.code === -1);
         const noRunRes = result.filter(i => i.code === -2);
-        logger.info(`更新消息记录总数：${result.length}，成功数量：${successRes.length}，无需更新数量：${noRunRes.length}，失败数量：${failRes.length}`);
         return { code: 0 };
       } else {
-        logger.info(`批次 ${_id} 关联的消息记录中不存在不等于已读的数据`);
         return { code: -2 };
       }
     } catch (error) {
@@ -206,16 +195,14 @@ module.exports = async function (params, context, logger) {
   try {
     const btachList = await getBatchRecords();
     if (btachList.length > 0) {
-      const updateFun = createLimiter(updateRecordFun);
+      const updateFun = createLimiter(updateRecordFun, { perSecond: 5 });
       const result = await Promise.all(btachList.map(item => updateFun(item._id)));
       const successRes = result.filter(i => i.code === 0);
       const failRes = result.filter(i => i.code === -1);
       const noRunRes = result.filter(i => i.code === -2);
-      logger.info(`更新消息批次数量：${result.length}，成功数量：${successRes.length}，无需更新数量：${noRunRes.length}，失败数量：${failRes.length}`);
     } else {
-      logger.info("不存在未读消息数大于0的消息批次数据");
     }
   } catch (error) {
-    logger.error("更新消息已读数量失败", error);
+    throw new Error("更新消息已读数量失败", error);
   }
 }

@@ -9,12 +9,8 @@ const { newLarkClient, getUserIdByEmails } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  logger.info("函数开始执行");
-  logger.info({ timestamp: new Date(), user: context.user._id });
-  logger.info(params);
   
   const { appId } = await application.integration.getDefaultTenantAccessToken();
-  logger.info("appId", appId);
 
   let response = {
     code: 0,
@@ -39,7 +35,6 @@ module.exports = async function (params, context, logger) {
         code: params.code,
       },
     });
-    logger.info("用户访问令牌获取结果", user_access_token_res);
   } catch (error) {
     logger.error("获取用户访问令牌失败", error);
     response.code = -1;
@@ -68,7 +63,6 @@ module.exports = async function (params, context, logger) {
       },
     }, lark.withUserAccessToken(user_access_token_res.data.access_token));
 
-    logger.info("设置聊天管理员结果", set_chat_admin_res);
   } catch (error) {
     logger.error("设置聊天管理员失败", error);
     response.code = -1;

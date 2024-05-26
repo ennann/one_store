@@ -11,9 +11,6 @@ const { chunkArray } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`创建消息发送记录 函数开始执行`, params);
-
   if (!params.message_define || !params.message_send_batch || !params.message_send_result) {
     throw new Error("缺少参数");
   }
@@ -54,7 +51,6 @@ module.exports = async function (params, context, logger) {
         ...chatMemberIds,
         chat_record.chat_owner._id,
       ]));
-      logger.info({ allMemberIds });
       return {
         department: { _id: chat_record.department._id },
         message_chat: { _id: chat_record._id },
@@ -110,7 +106,6 @@ module.exports = async function (params, context, logger) {
           user_ids,
           message_send_record
         });
-        logger.info("执行创建消息阅读记录异步任务", { task });
       }
     } catch (error) {
       logger.error(`创建消息发送记录 ${record.data.message_id} 失败`, error);
@@ -119,7 +114,6 @@ module.exports = async function (params, context, logger) {
 
   try {
     await Promise.all(message_send_result.map(item => createRecord(item)));
-    logger.info("创建消息发送记录成功");
   } catch (error) {
     logger.error("创建消息发送记录失败", error);
     throw new Error("创建消息发送记录失败", error);

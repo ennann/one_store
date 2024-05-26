@@ -11,9 +11,6 @@ const { createLimiter } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`重试-发送消息 函数开始执行`, params);
-
   if (!params.record) {
     throw new Error("请传入消息发送批次");
   }
@@ -32,7 +29,6 @@ module.exports = async function (params, context, logger) {
         })
         .select("_lark_user_id")
         .find();
-      logger.info({ userRecords });
       return userRecords.map(i => i._lark_user_id);
     } catch (error) {
       throw new Error("获取用户信息失败", error);
@@ -70,7 +66,6 @@ module.exports = async function (params, context, logger) {
         ...chatMemberIds,
         chat_record.chat_owner._id,
       ]));
-      logger.info({ allMemberIds });
       return {
         chat_ids: [chat_record.chat_id],
         allMemberIds
@@ -87,7 +82,6 @@ module.exports = async function (params, context, logger) {
         .where({ _id: record._id })
         .select("_id", "message_content", "msg_type", "success_count")
         .findOne();
-      logger.info({ data });
       return data;
     } catch (error) {
       throw new Error("获取消息发送批次失败", error);
@@ -105,7 +99,6 @@ module.exports = async function (params, context, logger) {
         })
         .select("_id", "option_send_channel", "message_chat", "accept_user")
         .findStream(records => sendRecords.push(...records));
-      logger.info({ sendRecords });
       return sendRecords;
     } catch (error) {
       throw new Error("获取关联批次的消息发送记录失败", error);
@@ -129,9 +122,7 @@ module.exports = async function (params, context, logger) {
         user_ids,
         message_send_record: { _id }
       });
-      logger.info("执行创建消息阅读记录异步任务", { task });
     }
-    logger.info({ ids });
 
     try {
       const funList = ids.map(receive_id => faas.function('MessageCardSend').invoke({ ...msgInfo, receive_id }))
@@ -150,73 +141,66 @@ module.exports = async function (params, context, logger) {
   try {
     // 消息发送记录
     const records = await getSendRecords();
-    if (records.length === 0) {
-      logger.info("记录中没有发送失败的消息，无需重试");
-      return;
-    }
+    if (records.length > 0) {
+      // 消息批次数据
+      const batchData = await getBatchData();
+      const msgInfo = {
+        content: batchData.message_content,
+        msg_type: batchData.msg_type
+      };
 
-    // 消息批次数据
-    const batchData = await getBatchData();
-    const msgInfo = {
-      content: batchData.message_content,
-      msg_type: batchData.msg_type
-    };
+      // 更新批次发送状态为重试中 option_retry
+      await DB(BATCH_OBJECT).update({
+        _id: batchData._id,
+        option_status: "option_retry",
+        send_start_datetime: dayjs().valueOf()
+      });
 
-    // 更新批次发送状态为重试中 option_retry
-    await DB(BATCH_OBJECT).update({
-      _id: batchData._id,
-      option_status: "option_retry",
-      send_start_datetime: dayjs().valueOf()
-    });
+      // 限流器
+      const limitSendMessage = createLimiter(sendMessage);
+      const res = await Promise.all(records.map((item) => limitSendMessage({ ...item, ...msgInfo })));
+      const sendMessageResult = res.flat();
+      const successRecords = sendMessageResult.filter(i => i.code === 0);
+      const failRecords = sendMessageResult.filter(i => i.code !== 0);
 
-    // 限流器
-    const limitSendMessage = createLimiter(sendMessage);
-    const res = await Promise.all(records.map((item) => limitSendMessage({ ...item, ...msgInfo })));
-    const sendMessageResult = res.flat();
-    const successRecords = sendMessageResult.filter(i => i.code === 0);
-    const failRecords = sendMessageResult.filter(i => i.code !== 0);
-
-    logger.info("重新发送消息总数", sendMessageResult.length);
-    logger.info("重新发送消息成功数量", successRecords.length);
-    logger.info("重新发送消息失败数量", failRecords.length);
-
-    let updateData = {};
-    if (sendMessageResult.every(i => i.code === 0)) {
-      // 重试全部成功
-      updateData = {
-        fail_count: 0,
-        option_status: "option_all_success",
-        success_count: batchData.success_count + sendMessageResult.length,
+      let updateData = {};
+      if (sendMessageResult.every(i => i.code === 0)) {
+        // 重试全部成功
+        updateData = {
+          fail_count: 0,
+          option_status: "option_all_success",
+          success_count: batchData.success_count + sendMessageResult.length,
+        }
+      } else {
+        // 部分成功
+        updateData = {
+          fail_count: failRecords.length,
+          option_status: "option_part_success",
+          success_count: batchData.success_count + successRecords.length,
+        }
       }
+
+      // 更新批次数据
+      await DB(BATCH_OBJECT).update({
+        ...updateData,
+        _id: batchData._id,
+        send_end_datetime: dayjs().valueOf()
+      });
+
+      // 更新消息记录
+      const updateRecordData = successRecords.map((item) =>
+        DB(RECORD_OBJECT)
+          .update({
+            _id: item._id,
+            result: "option_success",
+            read_status: "option_unread",
+            unread_count: item.unread_count
+          })
+      );
+      await Promise.all(updateRecordData);
     } else {
-      // 部分成功
-      updateData = {
-        fail_count: failRecords.length,
-        option_status: "option_part_success",
-        success_count: batchData.success_count + successRecords.length,
-      }
+      throw new Error("批次中失败的消息发送记录为空");
     }
-
-    // 更新批次数据
-    await DB(BATCH_OBJECT).update({
-      ...updateData,
-      _id: batchData._id,
-      send_end_datetime: dayjs().valueOf()
-    });
-    logger.info("更新批次数据成功")
-
-    // 更新消息记录
-    const updateRecordData = successRecords.map((item) =>
-      DB(RECORD_OBJECT)
-        .update({
-          _id: item._id,
-          result: "option_success",
-          read_status: "option_unread",
-          unread_count: item.unread_count
-        })
-    );
-    await Promise.all(updateRecordData);
-    logger.info("更新消息记录成功")
   } catch (error) {
     logger.error("发送消息重试失败", error);
     throw new Error("发送消息重试失败", error);

@@ -13,8 +13,6 @@ const { newLarkClient } = require('../utils');
 module.exports = async function (params, context, logger) {
   const { chat_id } = params;
 
-  logger.info('参数', params);
-
   if (!chat_id) {
     logger.error('错误：缺少 chat_id 参数');
     return { code: -1, message: '缺少 chat_id 参数' };
@@ -41,8 +39,6 @@ module.exports = async function (params, context, logger) {
 
     // chatMembers = chatMembers.items;
 
-    logger.info('获取群聊成员', JSON.stringify(chatMembers, null, 2));
-
     // 移除群聊成员
 
     // 判断 chatMembers 是否为空
@@ -51,7 +47,7 @@ module.exports = async function (params, context, logger) {
         client.im.chatMembers.delete({
           path: { chat_id },
           params: { member_id_type: "user_id" },
-          data: { id_list: [ memberId ] },
+          data: { id_list: [memberId] },
         });
       };
 
@@ -62,6 +58,6 @@ module.exports = async function (params, context, logger) {
     }
     return { code: 0, message: '没有群成员可以移除' };
   } catch (e) {
-    return { code: -1, message: '移除群聊失败'+e.message };
+    return { code: -1, message: '移除群聊失败' + e.message };
   }
 };

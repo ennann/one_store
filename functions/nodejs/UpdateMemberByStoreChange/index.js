@@ -11,19 +11,9 @@ const { newLarkClient, fetchEmailsByUserId } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  // logger.info(`${new Date()} 函数开始执行`);
-
-  // 在这里补充业务代码
-
-
-
   let apaas_group_member_records = await application.data
     .object('object_user_group_member')
     .select(['user_group', 'user'])
     .where({ user: 'liujinxiang.1007@bytedance.com' })
     .find();
-
-
-
 }

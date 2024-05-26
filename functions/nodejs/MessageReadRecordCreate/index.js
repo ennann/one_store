@@ -10,15 +10,12 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`创建消息阅读记录 ${new Date()} 函数开始执行`, params);
-
   if (!params.user_ids || !params.message_send_record) {
     throw new Error("缺少参数,请检查");
   }
 
   if (params.user_ids === 0) {
-    logger.info("用户ID列表为空，中断函数");
+    logger.error("用户ID列表为空，中断函数");
     return;
   }
 
@@ -44,10 +41,7 @@ module.exports = async function (params, context, logger) {
   };
 
   try {
-    const result = await Promise.all(user_ids.map(userId => createMessageReadRecord(userId, message_send_record._id)));
-    const successRes = result.filter(i => i.code === 0);
-    const failRes = result.filter(i => i.code !== 0);
-    logger.info(`创建消息阅读记录 总数：${result.length}，成功数量：${successRes.length}，失败数量：${failRes.length}`);
+    await Promise.all(user_ids.map(userId => createMessageReadRecord(userId, message_send_record._id)));
   } catch (error) {
     logger.error(`创建消息阅读记录`, error);
     throw new Error(`创建消息阅读记录`, error);

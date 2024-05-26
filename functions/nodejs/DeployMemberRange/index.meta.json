@@ -19,6 +19,44 @@
       "required": true,
       "description": "",
       "objectApiName": "object_user_rule"
+    },
+    {
+      "key": "work_team",
+      "type": "List",
+      "label": "用户组",
+      "required": false,
+      "description": "",
+      "listItem": {
+        "type": "JSON"
+      }
+    },
+    {
+      "key": "user_department",
+      "type": "List",
+      "label": "人员部门",
+      "required": false,
+      "description": "",
+      "listItem": {
+        "type": "JSON"
+      }
+    },
+    {
+      "key": "job_position",
+      "type": "List",
+      "label": "岗位",
+      "required": false,
+      "description": "",
+      "listItem": {
+        "type": "JSON"
+      }
+    },
+    {
+      "key": "publisher",
+      "type": "Record",
+      "label": "发布人",
+      "required": false,
+      "description": "",
+      "objectApiName": "_user"
     }
   ],
   "output": [

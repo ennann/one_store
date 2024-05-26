@@ -11,34 +11,28 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    // 日志功能
-    logger.info('开始执行查询飞书用户组列表函数\n', { timestamp: new Date(), user: context.user._id });
+  // 日志功能
 
-    let client = await newLarkClient({ userId: context.user._id }, logger);
+  let client = await newLarkClient({ userId: context.user._id }, logger);
 
-    // Initialize the array to store group data.
-    const allGroups = [];
+  // Initialize the array to store group data.
+  const allGroups = [];
 
-    try {
-        // Retrieve group list with pagination handling
-        for await (const item of await client.contact.group.simplelistWithIterator({
-            params: {
-                page_size: 100,
-                type: 1,
-            },
-        })) {
-            // logger.info('接收到群组批次数据长度：', item.grouplist.length);
-            allGroups.push(...item.grouplist);
-        }
-    } catch (error) {
-        // Log the error and return an empty array if an error occurs.
-        logger.error('查询飞书用户组列表时发生错误：', error);
-        return []; // Return an empty array to indicate failure or no data retrieved.
+  try {
+    // Retrieve group list with pagination handling
+    for await (const item of await client.contact.group.simplelistWithIterator({
+      params: {
+        page_size: 100,
+        type: 1,
+      },
+    })) {
+      allGroups.push(...item.grouplist);
     }
+  } catch (error) {
+    // Log the error and return an empty array if an error occurs.
+    logger.error('查询飞书用户组列表时发生错误：', error);
+    return []; // Return an empty array to indicate failure or no data retrieved.
+  }
 
-    logger.info('查询到的所有群组：', allGroups.length);
-    return allGroups;
-
-
-
+  return allGroups;
 };

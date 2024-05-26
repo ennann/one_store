@@ -10,28 +10,22 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`${new Date()} 函数开始执行`);
-  logger.info("入参：",params)
-
   // 获取数据库中的数据信息
   const apaas_dep_records = [];
 
-// 获取所有部门信息
+  // 获取所有部门信息
   await application.data
-  .object("_department")
-  .select(["_id","_name","_superior"])
-  .findStream(records => {
-    apaas_dep_records.push(...records);
+    .object("_department")
+    .select(["_id", "_name", "_superior"])
+    .findStream(records => {
+      apaas_dep_records.push(...records);
     });
 
-let isLeafNode = true;
-for (const dep of apaas_dep_records) {
-  if(dep._superior && params.depId == dep._superior._id){
-    isLeafNode = false;
+  let isLeafNode = true;
+  for (const dep of apaas_dep_records) {
+    if (dep._superior && params.depId == dep._superior._id) {
+      isLeafNode = false;
+    }
   }
-}
-logger.info("返回值",isLeafNode)
-  // 在这里补充业务代码
   return isLeafNode
 }

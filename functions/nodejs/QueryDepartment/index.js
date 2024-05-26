@@ -10,19 +10,34 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`${new Date()} 函数开始执行`, params);
-
   if (!params.department_name) {
     logger.error("传入的部门名称为空");
-    return {department: {} }
+    return { department: {} }
   }
 
   // 在这里补充业务代码
-  const department = await application.data.object('_department').select('_name', '_manager').where({"_name": params.department_name}).findOne();
-  logger.info(department);
+  const department = await application.data.object('_department').select('_name', '_manager', '_id').where({ "_name": params.department_name }).findOne();
 
-  return { department };
+  // 获取数据库中的数据信息
+  const apaas_dep_records = [];
 
+  // 获取所有部门信息
+  await application.data
+    .object("_department")
+    .select(["_id", "_name", "_superior"])
+    .findStream(records => {
+      apaas_dep_records.push(...records);
+    });
 
+  let isLeafNode = true;
+  for (const dep of apaas_dep_records) {
+    if (dep._superior && department._id == dep._superior._id) {
+      isLeafNode = false;
+    }
+  }
+  // 如果是叶子节点部门返回部门，否则返回空
+  if (isLeafNode) {
+    return { department };
+  }
+  return { department: {} }
 }

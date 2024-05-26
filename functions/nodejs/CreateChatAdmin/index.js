@@ -10,11 +10,6 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  // logger.info(`${new Date()} 函数开始执行`);
-
-  // 在这里补充业务代码
-
   let response = {
     code: 0,
     message: ""
@@ -22,10 +17,8 @@ module.exports = async function (params, context, logger) {
 
   const { chat_id, open_ids: manager_ids } = params;
 
-  logger.info({ params })
-
   const client = await newLarkClient({ userId: context.user._id }, logger);
-  
+
   if (!chat_id) {
     response.code = -1;
     response.message = "群组ID缺失，无法继续执行";
@@ -39,13 +32,12 @@ module.exports = async function (params, context, logger) {
     throw new Error("群组ID缺失，无法继续执行");
   }
 
-  try{
+  try {
     // 获取群成员
     // const res = await client.im.chatMembers.get({
     //   path: { chat_id },
     //   params: { member_id_type: 'open_id' },
     // })
-    // logger.info({res})
     //创建群管理员
     const set_chat_admin_res = await client.im.chatManagers.addManagers({
       path: { chat_id },
@@ -57,11 +49,11 @@ module.exports = async function (params, context, logger) {
       response.code = -2;
       response.message = "设置群管理员失败";
       throw new Error("设置群管理员失败");
-    }else{
+    } else {
       response.message = "设置群管理员成功";
       return response;
     }
-  }catch (error) {
+  } catch (error) {
     logger.error("设置群管理员失败", error);
     response.code = -1;
     response.message = "设置群管理员失败";

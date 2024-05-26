@@ -10,9 +10,6 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  // 日志功能
-  logger.info(`批次加急消息 ${new Date()} 函数开始执行`, params);
-
   if (!params.batch_record) {
     throw new Error("缺少消息发送批次数据");
   }
@@ -55,13 +52,11 @@ module.exports = async function (params, context, logger) {
     } else {
       userList = await getUnReadUsers(ele._id)
     }
-    logger.info({ userList });
     const user_id_list = await getUserIds(userList);
-    logger.info({ user_id_list });
     return {
       message_id: ele.message_id,
       urgent_type: "urgentApp",
-      user_id_list
+      user_id_list: user_id_list.filter(id => !!id)
     };
   }
 
@@ -78,10 +73,8 @@ module.exports = async function (params, context, logger) {
       })
       .select("_id", "message_id", "option_send_channel", "message_chat", "accept_user")
       .findStream(records => msgRecords.push(...records));
-    logger.info({ msgRecords });
     if (msgRecords.length > 0) {
       const urgentList = await Promise.all(msgRecords.map(ele => getUrgent(ele)));
-      logger.info({ urgentList });
       return urgentList;
     }
     return [];
@@ -93,29 +86,23 @@ module.exports = async function (params, context, logger) {
       .where({ _id: batch_record._id })
       .select("_id", "unread_count", "option_status")
       .findOne();
-    logger.info({ record });
     return record;
   };
 
   try {
     const batchData = await getBatchData();
     if (batchData.unread_count === 0) {
-      logger.info("消息批次未读消息为0，中断函数");
       return;
     }
     if (!["option_all_success", "option_part_success"].includes(batchData.option_status)) {
-      logger.info("消息批次中没有发送成功的消息，中断函数");
       return;
     }
     const urgentList = await getUrgentList();
     if (urgentList.length === 0) {
-      logger.info("消息批次中没有满足加急的消息记录");
       return;
     }
-    const result = await Promise.all(urgentList.map(item => faas.function("MessageUrgent").invoke({ ...item })));
-    const successRes = result.filter(i => i.code === 0);
-    const failRes = result.filter(i => i.code === -1);
-    logger.info(`批次加急消息记录总数：${result.length}，成功数量：${successRes.length}，失败数量：${failRes.length}`);
+    await Promise.all(urgentList.map(item => faas.function("MessageUrgent").invoke({ ...item })));
+    await DB(BATCH_OBJECT).update({ _id: batchData._id, option_urgent: "urgentApp" });
   } catch (error) {
     logger.error("批次加急消息出错", error);
     throw new Error("批次加急消息出错", error)

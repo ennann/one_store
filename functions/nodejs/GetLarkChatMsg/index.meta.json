@@ -1,0 +1,31 @@
+{
+  "apiID": "one_store__c__function_aadgkgj3fnmaa",
+  "apiName": "GetLarkChatMsg",
+  "label": {
+    "zh_CN": "获取飞书群详细信息",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "larkChatId",
+      "type": "Text",
+      "label": "飞书群id",
+      "required": true,
+      "description": ""
+    }
+  ],
+  "output": [
+    {
+      "key": "larkChatOwnerId",
+      "type": "Text",
+      "label": "飞书群主id",
+      "description": ""
+    }
+  ]
+}

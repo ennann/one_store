@@ -55,7 +55,7 @@ module.exports = async function (params, context, logger) {
 
             // 消息卡片的发送必须是 stringify 之后的数据
             const card_message =
-                '{"config":{"wide_screen_mode":true},"elements":[{"tag":"markdown","content":"为了更好地服务大家，请将一店一群机器人设为群管理员。"},{"tag":"action","actions":[{"tag":"button","text":{"tag":"plain_text","content":"点击授权"},"type":"primary","multi_url":{"url":"baidu.com","pc_url":"","android_url":"","ios_url":""}}]}],"header":{"template":"red","title":{"content":"🤖 一店一群机器人授权","tag":"plain_text"}}}';
+                '{"config":{"wide_screen_mode":true},"elements":[{"tag":"markdown","content":"为了更好地服务大家，请群主请将一店一群机器人设为群管理员。"},{"tag":"action","actions":[{"tag":"button","text":{"tag":"plain_text","content":"点击授权"},"type":"primary","multi_url":{"url":"baidu.com","pc_url":"","android_url":"","ios_url":""}}]}],"header":{"template":"red","title":{"content":"🤖 请群主为一店一群机器人授权","tag":"plain_text"}}}';
             logger.info('获取到的卡片消息', card_message);
             let message = JSON.parse(card_message);
             message.elements[1].actions[0].multi_url.url = button_url;
@@ -85,12 +85,14 @@ module.exports = async function (params, context, logger) {
                     msg: '发送消息失败',
                 };
             }
-
+            // 降信息存储到redis中标记  key -> 群号   value -> message_id
+            await baas.redis.setex(response.data.chat_id,24*60*60*30,response.data.message_id);
+            
             break;
 
         case 'card.action.trigger':
             // card.action.trigger 消息卡片按钮被点击事件
-            logger.info('本次事件：用户点击消息卡片按钮');
+            logger.info('本次事件：用户点击消息卡片按钮，入参：',params);
             break;
 
         case 'im.message.receive_v1':

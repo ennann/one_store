@@ -9,41 +9,34 @@
  *
  * @return 函数的返回数据
  */
- module.exports = async function (params, context, logger) {
-  // 日志功能
-  // logger.info(`${new Date()} 函数开始执行`);
-  logger.info("入参", params);
-
+module.exports = async function (params, context, logger) {
   // 当天最大全部群发送数
   const MAX_ALL_MSG_NUM = 5;
 
   // 获取当前的日期 2024-05-21
   const today = getCurrentDate();
-  logger.info("当前日期：", today);
 
-   // 获取redis中当天发送全部群的消息数 
-   const msgCount = await baas.redis.get(today)
-   logger.info('当前已发全部群信息数:',msgCount);
+  // 获取redis中当天发送全部群的消息数 
+  const msgCount = await baas.redis.get(today)
 
   // 获取操作类型  1-校验是否超过最大数 2-更新当天最大记录数
   const operateFlag = params.operateFlag;
-  logger.info('当前操作类型：',operateFlag);
 
   if (operateFlag === "X") {
-      if (msgCount >= MAX_ALL_MSG_NUM) {
-          return {outFlag:false};
-      } else {
-          return {outFlag:true};
-      }
+    if (msgCount >= MAX_ALL_MSG_NUM) {
+      return { outFlag: false };
+    } else {
+      return { outFlag: true };
+    }
   } else if (operateFlag === "Y") {
-      if(msgCount){
-        await baas.redis.setex(today,24*60*60,msgCount+1);
-      }else{
-        await baas.redis.setex(today,24*60*60,1);
-      }
-      return {outFlag:true}
-  }else {
-    return {outFlag:false};
+    if (msgCount) {
+      await baas.redis.setex(today, 24 * 60 * 60, msgCount + 1);
+    } else {
+      await baas.redis.setex(today, 24 * 60 * 60, 1);
+    }
+    return { outFlag: true }
+  } else {
+    return { outFlag: false };
   }
 }
 

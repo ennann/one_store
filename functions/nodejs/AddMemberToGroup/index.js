@@ -12,10 +12,6 @@ const { newLarkClient, getUserIdByEmails } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function(params, context, logger) {
-
-    logger.info("函数开始执行");
-    logger.info({ timestamp: new Date(), user: context.user._id });
-
     let response = {
         code: 0,
         message: ""
@@ -46,7 +42,6 @@ module.exports = async function(params, context, logger) {
     try {
         
         const userIdList = await getUserIdByEmails(emails, logger)
-        logger.info("提取的用户ID列表", { userIdList });
         if (userIdList.length == 0) {
           response.code = -1;
           response.message = "添加聊天成员失败，请确认权限";
