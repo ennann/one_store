@@ -16,12 +16,23 @@ module.exports = async function (params, context, logger) {
   // const fieldApiNames = messageDefineFields.map(item => item.apiName);
   // // logger.info(fieldApiNames);
 
-  const redisValue = await baas.redis.setex("2024-05-21",24*60*60,1);
+  const redisValue = await baas.redis.setex("2024-05-21", 24 * 60 * 60, 1);
 
 
   let object_task_def_record = await application.data.object('object_task_def').select('publish_department').findOne();
   logger.info(object_task_def_record)
-  logger.info(object_task_def_record.publish_department)
+  logger.info(object_task_def_record.publish_department);
+  taskDefine = object_task_def_record
+
+  // 因为之前获取部门名称（任务来源）一直有问题，这里增加功能，单独去找部门名称
+  let sourceDepartmentName = '';
+  if (taskDefine.publish_department._id || taskDefine.publish_department.id) {
+    const sourceDepartment = await application.data.object("_department").select("_name").where({ _id: taskDefine.publish_department._id || taskDefine.publish_department.id }).findOne();
+    logger.info(sourceDepartment);
+    sourceDepartmentName = department?._name?.find(item => item.language_code === 2052)?.text || department?._name?.find(item => item.language_code === 1033)?.text || "未知部门";
+  } else {
+    logger.warn(任务定义内的发布部门为空);
+  }
 
 
   return

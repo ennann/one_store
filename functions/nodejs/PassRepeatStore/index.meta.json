@@ -2,21 +2,22 @@
   "apiID": "one_store__c__function_aadgj5ghglegu",
   "apiName": "PassRepeatStore",
   "label": {
-    "zh_CN": "过滤多余的门店",
-    "en_US": ""
+    "zh_CN": "过滤多余的门店成员",
+    "en_US": null
   },
   "description": {
     "zh_CN": "自定义函数",
     "en_US": "Custom Function"
   },
-  "longTaskMode": false,
+  "isPublicAPI": false,
   "frontendSDKInvokable": true,
+  "longTaskMode": false,
   "input": [
     {
       "key": "group1",
       "type": "RecordList",
-      "label": "新入门店人",
       "required": false,
+      "label": "新入门店人",
       "description": "",
       "objectApiName": "object_chat_member",
       "fieldApiNames": [
@@ -35,8 +36,8 @@
     {
       "key": "group2",
       "type": "RecordList",
-      "label": "原有的成员",
       "required": false,
+      "label": "原有的成员",
       "description": "",
       "objectApiName": "object_chat_member",
       "fieldApiNames": [
@@ -55,8 +56,8 @@
     {
       "key": "groupId",
       "type": "Text",
-      "label": "飞书群id",
       "required": false,
+      "label": "飞书群id",
       "description": ""
     }
   ],

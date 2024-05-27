@@ -10,6 +10,7 @@ const _ = application.operator;
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+  logger.info(`批量创建门店任务开始执行`, params);
   const { task_def_record } = params;
   if (!task_def_record) {
     logger.warn('未传入有效的任务定义记录');
@@ -17,7 +18,7 @@ module.exports = async function (params, context, logger) {
   }
   // 1. 第一步根据任务定义列表创建任务处理记录（任务批次）
   // 为任务定义实例记录生成任务批次号并创建任务处理记录（任务批次）
-  const taskBatchNumberCreateResult = await createTaskMonitorEntry(task_def_record, logger);
+  const taskBatchNumberCreateResult = await createSecondLevelTaskBatch(task_def_record, logger);
 
   if (taskBatchNumberCreateResult.code !== 0) {
     logger.error('任务处理记录（任务批次）生成失败', taskBatchNumberCreateResult);
@@ -30,7 +31,7 @@ module.exports = async function (params, context, logger) {
   //2.  第二步根据任务定义，创建抄送人aPaaS数据，给抄送人发送飞书消息
   if (task_def_record.carbon_copy) {
     const carbonCopy = task_def_record.carbon_copy;
-    const userList = await faas.function('DeployMemberRange').invoke({ user_rule: carbonCopy });
+    const userList = await faas.function('DeployMemberRange').invoke({ user_rule: carbonCopy, publisher: context.user });
 
     if (userList.length > 0) {
       const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger);
@@ -53,7 +54,7 @@ module.exports = async function (params, context, logger) {
   await baas.redis.del(taskBatchNumberCreateResult?.task_id);
 
   // 调用创建门店普通任务函数
-  const storeTaskCreateResults = await createStoreTaskEntry(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage);
+  const storeTaskCreateResults = await batchCreateThirdLevelStoreTask(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage);
 
   return {
     code: storeTaskCreateResults.code,
@@ -68,7 +69,7 @@ module.exports = async function (params, context, logger) {
  * @param {*} logger
  * @returns
  */
-async function createTaskMonitorEntry(taskDefine, logger) {
+async function createSecondLevelTaskBatch(taskDefine, logger) {
   try {
     const { batch_no, batch_progress } = await faas.function('GetTaskBatchNumber').invoke({ object_task_def: taskDefine });
 
@@ -137,9 +138,20 @@ async function createTaskMonitorEntry(taskDefine, logger) {
  * @param {*} limitedSendFeishuMessage
  * @returns
  */
-async function createStoreTaskEntry(taskDefine, taskBatch, logger, limitedSendFeishuMessage) {
+async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, limitedSendFeishuMessage) {
   const createDataList = [];
   try {
+
+    // 因为之前获取部门名称（任务来源）一直有问题，这里增加功能，单独去找部门名称
+    let sourceDepartmentName = '';
+    if (taskDefine.publish_department._id || taskDefine.publish_department.id) {
+      const sourceDepartment = await application.data.object("_department").select("_name").where({ _id: taskDefine.publish_department._id || taskDefine.publish_department.id }).findOne();
+      logger.info(sourceDepartment);
+      sourceDepartmentName = sourceDepartment?._name?.find(item => item.language_code === 2052)?.text || sourceDepartment?._name?.find(item => item.language_code === 1033)?.text || "未知部门";
+    } else {
+      logger.warn(任务定义内的发布部门为空);
+    }
+
     const task_plan_time = dayjs(taskBatch.task_create_time).add(taskDefine.deal_duration, 'day').valueOf();
 
     const department_record = taskDefine.publish_department;
@@ -191,7 +203,7 @@ async function createStoreTaskEntry(taskDefine, taskBatch, logger, limitedSendFe
         createDataList.push(createData);
       }
     } else if (taskDefine.option_handler_type === 'option_02') {
-      const userList = await faas.function('DeployMemberRange').invoke({ user_rule: taskDefine.user_rule });
+      const userList = await faas.function('DeployMemberRange').invoke({ user_rule: taskDefine.user_rule, publisher: context.user });
 
       if (userList.length === 0) {
         logger.warn('根据任务定义人员筛选规则查询结果为空');
@@ -238,7 +250,8 @@ async function createStoreTaskEntry(taskDefine, taskBatch, logger, limitedSendFe
 
 
     if (createDataList.length > 0) {
-      const storeTaskCreateResults = await Promise.all(createDataList.map(task => createStoreTaskEntryStart(task, logger)));
+      logger.info(`即将创建的门店普通任务数据数据，数据总数${createDataList.length}（仅展示第一个数据）`, createDataList[0]);
+      const storeTaskCreateResults = await Promise.all(createDataList.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
       const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
       const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
 
@@ -292,7 +305,7 @@ async function createStoreTaskEntry(taskDefine, taskBatch, logger, limitedSendFe
  * @param {*} logger
  * @returns
  */
-async function createStoreTaskEntryStart(storeTask, logger) {
+async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger) {
   // storeTask 代表门店普通任务
   try {
     const storeTaskId = await application.data.object('object_store_task').create(storeTask);
@@ -323,7 +336,7 @@ async function createStoreTaskEntryStart(storeTask, logger) {
           { tag: 'div', text: { content: '任务标题：' + storeTask.name, tag: 'plain_text' } },
           { tag: 'div', text: { content: '任务描述：' + storeTask.description, tag: 'plain_text' } },
           { tag: 'div', text: { content: '任务优先级：' + priority.option_name, tag: 'plain_text' } },
-          { tag: 'div', text: { content: '任务来源：' + storeTask.source_department._name, tag: 'plain_text' } },
+          { tag: 'div', text: { content: '任务来源：' + sourceDepartmentName, tag: 'plain_text' } },
           {
             tag: 'div',
             text: { content: '任务下发时间：' + dayjs(storeTask.task_create_time).add(8, 'hour').format('YYYY-MM-DD HH:mm:ss'), tag: 'plain_text' },
@@ -342,7 +355,7 @@ async function createStoreTaskEntryStart(storeTask, logger) {
             ],
           },
         ],
-        header: { template: 'turquoise', title: { content: '【任务抄送】有一条门店任务发布！', tag: 'plain_text' } },
+        header: { template: 'turquoise', title: { content: '【任务】有一条门店任务发布！', tag: 'plain_text' } },
       };
 
       data.content = JSON.stringify(content);
@@ -424,8 +437,15 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
   const aPaaSDataList = [];
 
   // 获取部门详情
-  const department_record = await application.data.object("_department").select("_id", "_name").where({ _id: taskDefRecord.publish_department.id || taskDefRecord.publish_department._id }).findOne();
-  logger.info("找到的部门记录为", department_record);
+  // 因为之前获取部门名称（任务来源）一直有问题，这里增加功能，单独去找部门名称
+  let sourceDepartmentName = '';
+  if (taskDefRecord.publish_department._id || taskDefRecord.publish_department.id) {
+    const sourceDepartment = await application.data.object("_department").select("_name").where({ _id: taskDefRecord.publish_department._id || taskDefRecord.publish_department.id }).findOne();
+    logger.info(sourceDepartment);
+    sourceDepartmentName = sourceDepartment?._name?.find(item => item.language_code === 2052)?.text || sourceDepartment?._name?.find(item => item.language_code === 1033)?.text || "未知部门";
+  } else {
+    logger.warn(任务定义内的发布部门为空);
+  }
 
   const priority = await faas.function('GetOptionName').invoke({
     table_name: 'object_task_def',
@@ -442,7 +462,14 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
       content: '',
     };
 
-    const url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgigzw3e2as?params_var_5CWWdDBS=${taskDefRecord._id}&lane_id=develop`;
+    const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${storeTask.task_def._id}&params_var_M8Kd1eI6=${storeTask.task_monitor._id}`;
+    const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${storeTask.task_def._id}&params_var_M8Kd1eI6=${storeTask.task_monitor._id}`;
+
+    const url = default_url;
+    const pc_url = default_url;
+    const android_url = mobile_url
+    const ios_url = mobile_url;
+
     const taskPlanTime = dayjs(taskBatch.task_create_time).add(taskDefRecord.deal_duration, 'day').valueOf();
     const hourDiff = (taskPlanTime - dayjs().valueOf()) / 36e5;
 
@@ -452,7 +479,7 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
         { tag: 'div', text: { content: '任务标题：' + taskDefRecord.name, tag: 'plain_text' } },
         { tag: 'div', text: { content: '任务描述：' + taskDefRecord.description, tag: 'plain_text' } },
         { tag: 'div', text: { content: '任务优先级：' + priority.option_name, tag: 'plain_text' } },
-        { tag: 'div', text: { content: '任务来源：' + department_record._name.find(item => item.language_code === 2052).text, tag: 'plain_text' } },
+        { tag: 'div', text: { content: '任务来源：' + sourceDepartmentName, tag: 'plain_text' } },
         { tag: 'div', text: { content: '任务下发时间：' + dayjs(taskBatch.task_create_time).add(8, 'hour').format('YYYY-MM-DD HH:mm:ss'), tag: 'plain_text' } },
         { tag: 'div', text: { content: '距离截至时间还有' + hourDiff.toFixed(2) + '小时', tag: 'plain_text' } },
         { tag: 'hr' },
@@ -463,7 +490,7 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
               tag: 'button',
               text: { tag: 'plain_text', content: '查看详情' },
               type: 'primary',
-              multi_url: { url, pc_url: url, android_url: url, ios_url: url },
+              multi_url: { url, pc_url, android_url, ios_url },
             },
           ],
         },

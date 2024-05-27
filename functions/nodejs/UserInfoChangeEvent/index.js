@@ -16,15 +16,17 @@ module.exports = async function (params, context, logger) {
   // 在飞书，部门信息为必填项，所以用户的部门信息不可能为空
   const oldDepartmentList = params.event.event.old_object.department_ids;
   const newDepartmentList = params.event.event.object.department_ids;
-  const { email, name, open_id } = params.event.event.object; // 变更的用户信息
+  const { email, name, open_id, mobile } = params.event.event.object; // 变更的用户信息
 
 
   // 如果变更后的部门一致，则不做任何操作
   if (oldDepartmentList[0] === newDepartmentList[0]) {
     return { code: -1, message: '部门信息未发生变化' };
   }
-
-  let userRecord = await application.data.object('_user').select('_id', '_name', '_email').where({ _email: email }).findOne();
+  // 邮箱查询变更为手机号查询apaas用户
+  // let userRecord = await application.data.object('_user').select('_id', '_name', '_email').where({ _email: email }).findOne();
+  const userPhonePre = mobile.substring(3);
+  let userRecord = await application.data.object('_user').select('_id', '_name', '_email').where({_phoneNumber: application.operator.contain(userPhonePre)}).findOne();
 
   if (!userRecord) {
     logger.error('用户信息不存在');
@@ -40,6 +42,12 @@ module.exports = async function (params, context, logger) {
   // 根据部门名称获取部门 aPaaS 记录
   let oldDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _name: oldDepartmentInfo.name }).findOne();
   let newDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _name: newDepartmentInfo.name }).findOne();
+
+  // 飞书中存在的部门
+  if( !newDepartmentRecord ){
+    logger.error('新部门信息不存在');
+    return { code: -1, message: '新部门信息在 aPaaS 不存在' };
+  }
 
   // 找到新的部门的群聊(部门相同，群类型等于 option_business 经营群)
   let newDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: newDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
@@ -62,7 +70,7 @@ module.exports = async function (params, context, logger) {
   }
 
   // 将用户从旧的部门群聊中移除
-  if (oldDepartmentChatGroup) {
+  if (oldDepartmentChatGroup && oldDepartmentList[0] != 0) {
     let chatMemberRecord = await application.data.object('object_chat_member').select('_id').where({ store_chat: oldDepartmentChatGroup._id, chat_member: userRecord._id }).findOne();
 
     if (chatMemberRecord) {

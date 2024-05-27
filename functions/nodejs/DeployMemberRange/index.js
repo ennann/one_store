@@ -9,6 +9,7 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+  logger.info(`查找人员范围函数开始执行`, params);
   const { user_rule, user_department, work_team, job_position, publisher } = params;
   let userList = [];
 
@@ -163,7 +164,8 @@ module.exports = async function (params, context, logger) {
         logger.warn("在权限授权明细表没有启用状态的发布人");
       }
     } else {
-      throw new Error("缺少发布人参数");
+      logger.warn("缺少发布人参数");
+      // throw new Error("缺少发布人参数");
     }
     userList.push(...jobUsers);
   }
