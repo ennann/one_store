@@ -51,7 +51,11 @@ module.exports = async function (params, context, logger) {
 
   // 找到新的部门的群聊(部门相同，群类型等于 option_business 经营群)
   let newDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: newDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
-  let oldDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: oldDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
+  // let oldDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: oldDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
+  let oldDepartmentChatGroup = {};
+  if(oldDepartmentList[0] != 0 && !oldDepartmentRecord){
+    oldDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: oldDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
+  }
 
   // 创建群成员记录，将用户拉入群聊
   if (newDepartmentChatGroup) {

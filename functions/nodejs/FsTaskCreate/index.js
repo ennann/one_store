@@ -97,7 +97,7 @@ module.exports = async function (params, context, logger) {
 
   if (data) {
     try {
-      // Apaas任务更新飞书任务ID
+      // aPaaS任务更新飞书任务ID
       await application.data.object('object_store_task').update(taskRecord._id, { task_guid: data.taskGuid });
       await updateMember(data);
     } catch (e) {

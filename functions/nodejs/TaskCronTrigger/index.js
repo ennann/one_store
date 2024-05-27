@@ -59,8 +59,8 @@ module.exports = async function (params, context, logger) {
           option_status: 'option_enable',
           option_method: 'option_once',
           boolean_public_now: false,
-          datetime_publish: _.lte(currentTime), // 5分钟内的任务
-          datetime_publish: _.gte(currentTime - timeBuffer),
+          datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的任务
+          datetime_publish: _.gte(currentTime),
         }), // 一次性任务的条件
       ),
     )
@@ -91,8 +91,9 @@ module.exports = async function (params, context, logger) {
   };
 
   const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-    return currentTime >= triggerTime - timeBuffer && currentTime <= triggerTime;
+    return currentTime >= triggerTime && currentTime <= triggerTime + timeBuffer;
   };
+
   // 循环所有 taskDefineRecords
   for (const task of taskDefineRecords) {
     if (task.option_method === 'option_once') {

@@ -15,6 +15,7 @@ module.exports = async function (params, context, logger) {
   if (!params.batch_record) {
     throw new Error("缺少消息批次记录");
   }
+  logger.info('撤回信息的入参：',params);
 
   const { batch_record } = params;
 
@@ -28,6 +29,7 @@ module.exports = async function (params, context, logger) {
   const recall = async (message_id) => {
     try {
       const res = await client.im.message.delete({ path: { message_id } });
+      logger.info('飞书平台撤回信息：',res);
       if (res.code !== 0) {
         logger.error(`${message_id} 消息撤回失败`);
         return { code: -1 };
@@ -110,14 +112,14 @@ module.exports = async function (params, context, logger) {
       await Promise.all(successRecords.map(item => recallFun(item.message_id)));
     }
 
-    if (msgRecords.length > 0) {
-      await Promise.all(msgRecords.map(item => deleteRecord(item)));
-      // 更新批次状态为已撤回
-      await DB(BATCH_OBJECT).update({
-        _id: batch_record._id,
-        option_status: "option_recall"
-      });
-    }
+    // if (msgRecords.length > 0) {
+    //   await Promise.all(msgRecords.map(item => deleteRecord(item)));
+    //   // 更新批次状态为已撤回
+    //   await DB(BATCH_OBJECT).update({
+    //     _id: batch_record._id,
+    //     option_status: "option_recall"
+    //   });
+    // }
   } catch (error) {
     throw new Error("批次消息撤回失败", error);
   }

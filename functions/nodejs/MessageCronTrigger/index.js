@@ -65,8 +65,9 @@ module.exports = async function (params, context, logger) {
   };
 
   const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-    return currentTime >= triggerTime - timeBuffer && currentTime <= triggerTime;
+    return currentTime >= triggerTime && currentTime <= triggerTime + timeBuffer;
   };
+
 
   // 循环所有 messageDefineRecords
   for (const message of messageDefineRecords) {
