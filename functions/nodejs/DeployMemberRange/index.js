@@ -176,7 +176,8 @@ module.exports = async function (params, context, logger) {
     logger.error('通过人员筛选条件获取人员列表为空');
     return [];
   }
-
+  logger.info('查找人员范围函数执行结束，总共找到人员：', userList.length);
+  
   return userList.map(item => ({
     ...item,
     user_id: item._lark_user_id

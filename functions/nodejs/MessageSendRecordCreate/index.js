@@ -11,6 +11,7 @@ const { chunkArray } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+  logger.info('创建消息发送记录函数开始执行', params);
   if (!params.message_define || !params.message_send_batch || !params.message_send_result) {
     throw new Error("缺少参数");
   }

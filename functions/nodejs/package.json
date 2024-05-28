@@ -3,7 +3,7 @@
     "@byted-apaas/baas-sdk-node": "1.0.16",
     "@byted-apaas/faas-sdk-node": "1.0.11",
     "@byted-apaas/server-common-node": "2.0.5",
-    "@byted-apaas/server-sdk-node": "1.1.14",
+    "@byted-apaas/server-sdk-node": "1.1.16",
     "@larksuiteoapi/node-sdk": "1.29.0",
     "bottleneck": "^2.19.5",
     "dayjs": "^1.11.11",

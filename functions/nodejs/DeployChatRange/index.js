@@ -88,6 +88,6 @@ module.exports = async function (params, context, logger) {
     let exclude_chats = await fetchChatRecords({ _id: application.operator.in(exclude_chat_ids), chat_status: "option_02" }, '排除的群聊');
     finalChatList = finalChatList.filter(item => !exclude_chats.some(exclude => exclude._id === item._id));
   }
-
+  logger.info('查找群组范围函数执行结束，总共找到群组：', finalChatList.length);
   return finalChatList;
 };

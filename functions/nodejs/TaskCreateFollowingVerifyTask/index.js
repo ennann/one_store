@@ -10,6 +10,7 @@ const dayjs = require('dayjs');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+  logger.info('创建验收后续任务函数开始执行(TaskCreateFollowingVerifyTask)', params);
   let { verify_task } = params;
 
   // 找到任务记录

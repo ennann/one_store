@@ -39,7 +39,7 @@ module.exports = async function (params, context, logger) {
     const useIds = object_feishu_chat.chat_managers.map(item => item._id)
     const userList = await application.data.object("_user")
       .where({
-        _id: application.operator.in(useIds.join(","))
+        _id: application.operator.in(useIds)
       })
       .select('_email').find();
     const emails = userList.map(item => item._email);

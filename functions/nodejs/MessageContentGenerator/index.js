@@ -70,7 +70,10 @@ module.exports = async function (params, context, logger) {
         },
       }
     }
-    logger.info(`最终生成的消息内容为`, { ...content, receive_id_type });
+    logger.info(`最终生成的消息内容为`, {
+      msg_type: "interactive",
+      content: JSON.stringify(info)
+    });
 
     return {
       msg_type: "interactive",
@@ -190,6 +193,7 @@ module.exports = async function (params, context, logger) {
       receive_id_type
     };
   } catch (error) {
+    logger.error("生成内容失败", error);
     throw new Error("生成内容失败", error);
   }
 };

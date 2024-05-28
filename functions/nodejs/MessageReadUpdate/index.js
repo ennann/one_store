@@ -47,7 +47,7 @@ module.exports = async function (params, context, logger) {
   };
 
   // 获取消息已读人员
-  const getRendUsers = async (message_id, page_token) => {
+  const getReadUsers = async (message_id, page_token = '') => {
     const users = [];
     try {
       const res = await client.im.message.readUsers({
@@ -59,18 +59,17 @@ module.exports = async function (params, context, logger) {
         }
       });
       if (res.code !== 0) {
-        throw new Error("查询消息已读信息接口报错");
+        throw new Error("查询消息已读信息接口报错, 消息为：", message_id);
       }
       users.push(...res.data.items);
-      if (!res.data.has_more) {
-        return users;
+      if (res.data.has_more) {
+        const moreUsers = await getReadUsers(message_id, res.data.page_token); // 传递message_id和新的page_token
+        users.push(...moreUsers);
       }
-      const moreUsers = await getRendUsers(res.data.page_token);
-      users.push(...moreUsers);
       return users;
     } catch (error) {
-      logger.error("查询消息已读信息接口报错", error);
-      throw new Error("查询消息已读信息接口报错", error);
+      logger.error("查询消息已读信息接口报错", message_id, error);
+      throw new Error("查询消息已读信息接口报错", message_id, error);
     }
   };
 
