@@ -2,30 +2,23 @@ const dayjs = require('dayjs');
 const { createLimiter } = require('../utils');
 
 module.exports = async function (params, context, logger) {
-    logger.info(`批量发送消息函数开始执行`, params);
+    logger.info(`批量发送消息 函数开始执行`, params);
 
     const { record } = params;
-    const KEY = record._id; // 消息定义的记录 ID 作为 Redis 的 KEY
+    const KEY = record._id;
     const redisValue = await baas.redis.get(KEY);
 
     if (redisValue) {
         throw new Error('已存在执行中发送消息任务');
     }
 
-    const { batch_no, message } = await faas.function('MessageGenerateBatchNumber').invoke({ record });
-
-    if (!batch_no) {
-        logger.error('生成批次号失败，请检查生成消息批次函数');
-        return { code: -1, message };
-    }
-
-
     let sendIds = [];
     let errorNum = 0;
     const MAX_ERROR_NUM = 5;
 
-    const createSendRecord = async batch_no => {
+    const createSendRecord = async () => {
         try {
+            const batch_no = await faas.function('MessageGenerateBatchNumber').invoke({ record: record });
             const createData = {
                 batch_no,
                 option_status: 'option_sending',
@@ -33,6 +26,7 @@ module.exports = async function (params, context, logger) {
                 send_start_datetime: dayjs().valueOf(),
             };
             const res = await application.data.object('object_message_send').create(createData);
+            logger.info('创建消息发送批次成功', res);
             return res._id;
         } catch (error) {
             logger.error('创建消息发送批次失败', error);
@@ -44,6 +38,7 @@ module.exports = async function (params, context, logger) {
 
     const sendMessage = async receive_id => {
         const paramsData = { ...messageContent, receive_id };
+        logger.info({ paramsData });
         try {
             const res = await faas.function('MessageCardSend').invoke({ ...paramsData });
             errorNum = 0;
@@ -53,6 +48,7 @@ module.exports = async function (params, context, logger) {
                 errorNum = 0;
                 throw new Error(`发送消息失败超过最大次数${MAX_ERROR_NUM} - `, paramsData);
             }
+            logger.info(error);
             errorNum += 1;
             sendMessage(receive_id);
         }
@@ -64,30 +60,20 @@ module.exports = async function (params, context, logger) {
         }
 
         if (record.send_channel === 'option_group') {
-            if (!record.chat_rule && !record.specific_chat && !record.department && !record.chat_tag && !record.all_chats) {
+            if (!record.chat_rule) {
                 throw new Error('缺少群组筛选规则');
             }
-            const chatRecordList = await faas.function('DeployChatRange').invoke({
-                deploy_rule: record.chat_rule,
-                specific_chat: record.specific_chat,
-                department: record.department,
-                chat_tag: record.chat_tag,
-                all_chats: record.all_chats,
-            });
+            const chatRecordList = await faas.function('DeployChatRange').invoke({ deploy_rule: record.chat_rule });
+            logger.info({ chatRecordList });
             sendIds = chatRecordList.map(i => i.chat_id);
+            logger.info({ sendIds });
         }
 
         if (record.send_channel === 'option_user') {
-            if (!record.user_rule && !record.work_team && !record.user_department && !record.job_position) {
+            if (!record.user_rule) {
                 throw new Error('缺少人员筛选规则');
             }
-            const userList = await faas.function('DeployMemberRange').invoke({
-                user_rule: record.user_rule,
-                work_team: record.work_team,
-                user_department: record.user_department,
-                job_position: record.job_position,
-                publisher: record.publisher,
-            });
+            const userList = await faas.function('DeployMemberRange').invoke({ user_rule: record.user_rule });
             sendIds = userList.map(i => i.user_id);
         }
 
@@ -95,9 +81,13 @@ module.exports = async function (params, context, logger) {
             await baas.redis.set(KEY, new Date().getTime());
             const recordId = await createSendRecord();
             const limitSendMessage = createLimiter(sendMessage);
+            logger.info({ sendIds });
             const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id)));
             const successRecords = sendMessageResult.filter(result => result.code === 0);
             const failRecords = sendMessageResult.filter(result => result.code !== 0);
+            logger.info(`消息总数：${sendMessageResult.length}`);
+            logger.info(`成功数量：${successRecords.length}`);
+            logger.info(`失败数量：${failRecords.length}`);
 
             let option_status;
             if (successRecords.length === sendMessageResult.length) {
@@ -120,12 +110,14 @@ module.exports = async function (params, context, logger) {
                         msg_type: messageContent.msg_type,
                         message_content: messageContent.content,
                     };
+                    logger.info({ updateData });
                     await application.data.object('object_message_send').update(updateData);
                     const res = await baas.tasks.createAsyncTask('MessageSendRecordCreate', {
                         message_send_result: sendMessageResult,
                         message_send_batch: { _id: recordId },
                         message_define: record,
                     });
+                    logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务', { res });
                 } catch (error) {
                     throw new Error('创建消息发送记录失败', error);
                 }

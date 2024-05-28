@@ -14,6 +14,7 @@ module.exports = async function (params, context, logger) {
     const currentDate = dayjs().format('YYYY-MM-DD');
     const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
+    logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}`);
 
     const messageDefineFields = await application.metadata.object('object_chat_message_def').getFields();
     const fieldApiNames = messageDefineFields.map(item => item.apiName);
@@ -40,7 +41,8 @@ module.exports = async function (params, context, logger) {
             ),
         )
         .find();
-    logger.info(`查询到的消息定义数量: ${messageDefineRecords.length}`);
+    logger.info(`查询到的消息定义数量: ${messageDefineRecords.length}`, messageDefineRecords.map(item => item._id));
+    
     if (messageDefineRecords.length == 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
 
     const unitMapping = {
