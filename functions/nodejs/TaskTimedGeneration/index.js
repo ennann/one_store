@@ -32,7 +32,7 @@ module.exports = async function (params, context, logger) {
     if (task_def_record.carbon_copy) {
         logger.info('任务定义内的抄送人数据', task_def_record.carbon_copy);
         const carbonCopy = task_def_record.carbon_copy;
-        const userList = await faas.function('DeployMemberRange').invoke({ user_rule: carbonCopy, publisher: context.user });
+        const userList = await faas.function('DeployMemberRange').invoke({ user_rule: carbonCopy, publisher: task_def_record.task_publisher });
 
         if (userList.length > 0) {
             const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger);
@@ -211,7 +211,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
                 createDataList.push(createData);
             }
         } else if (taskDefine.option_handler_type === 'option_02') {
-            const userList = await faas.function('DeployMemberRange').invoke({ user_rule: taskDefine.user_rule, publisher: context.user });
+            const userList = await faas.function('DeployMemberRange').invoke({ user_rule: taskDefine.user_rule, publisher: task_def_record.task_publisher });
 
             if (userList.length === 0) {
                 logger.warn('根据任务定义人员筛选规则查询结果为空');
@@ -475,8 +475,8 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
             content: '',
         };
 
-        const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${storeTask.task_def._id}&params_var_M8Kd1eI6=${storeTask.task_monitor._id}`;
-        const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${storeTask.task_def._id}&params_var_M8Kd1eI6=${storeTask.task_monitor._id}`;
+        const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${taskBatch._id || taskBatch.id}`;
+        const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${taskBatch._id || taskBatch.id}`;
 
         const url = default_url;
         const pc_url = default_url;
