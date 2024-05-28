@@ -9,6 +9,7 @@ const _ = application.operator;
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+    logger.info('任务触发器函数开始执行');
     const currentTime = dayjs().valueOf(); // 当前时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
 
@@ -65,6 +66,8 @@ module.exports = async function (params, context, logger) {
             ),
         )
         .find();
+    logger.info(`查询到的任务定义数量: ${taskDefineRecords.length}`);
+    if (taskDefineRecords.length == 200) logger.warn('查询到任务定义数量达到200条，可能有遗漏');
 
     const unitMapping = {
         option_day: 'day',
@@ -129,6 +132,7 @@ module.exports = async function (params, context, logger) {
             }
         }
     }
+    logger.info(`查询到的任务定义数量: ${valuedTaskDefineList.length}`);
 
     // return valuedTaskDefineList;
 
@@ -141,6 +145,10 @@ module.exports = async function (params, context, logger) {
     // // 并发执行任务生成函数
     // const taskGenerationResult = await Promise.all(valuedTaskDefineList.map(invokeTaskGenerateFunction));
 
+    // const taskGenerationResult = await faas.function('TaskTimedGeneration').invoke({ object_task_defs: valuedTaskDefineList });
+    // const successList = taskGenerationResult.data.successfulTasks;
+    // const failList = taskGenerationResult.data.failedTasks;
+
     // 这里不使用 Promise.all 来并发执行任务定义，而是使用 for 循环来逐个执行
     const taskGenerationResult = [];
     for (const taskDefine of valuedTaskDefineList) {
@@ -151,9 +159,7 @@ module.exports = async function (params, context, logger) {
     const successList = taskGenerationResult.filter(item => item.code === 0);
     const failList = taskGenerationResult.filter(item => item.code !== 0);
 
-    // const taskGenerationResult = await faas.function('TaskTimedGeneration').invoke({ object_task_defs: valuedTaskDefineList });
-    // const successList = taskGenerationResult.data.successfulTasks;
-    // const failList = taskGenerationResult.data.failedTasks;
+    logger.info(`任务触发器函数执行完成, 成功数量: ${successList.length}, 失败数量: ${failList.length}`);
 
     return {
         message: '任务触发器函数执行成功',

@@ -11,6 +11,14 @@ const { newLarkClient } = require('../utils');
  */
 module.exports = async function (params, context, logger) {
 
+  let oldDepAllStore =
+await application.data
+.object('object_store_staff')
+.select('_id','store_staff','store_staff_department')
+.where({"_id": '1800293549344772'})
+.find();
+logger.info(oldDepAllStore)
+
   const client = await newLarkClient({ userId: context?.user?._id }, logger); // 创建 Lark 客户端
   // 日志功能
   // logger.info(`${new Date()} 函数开始执行`);
@@ -19,6 +27,10 @@ module.exports = async function (params, context, logger) {
 //  const flag =  await baas.redis.get("2024-05-22")
 //  logger.info("测试数据：",flag)
 // await baas.redis.setex(context?.user?._id,20*90,'om_3e1871c25feeac901ebd106d2b6545f3')
+
+
+
+
 // 获取飞书群详细信息
 const chatRes = await client.im.chat.get({
   path: {
