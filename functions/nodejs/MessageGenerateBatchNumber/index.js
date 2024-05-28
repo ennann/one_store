@@ -1,4 +1,6 @@
 const dayjs = require('dayjs');
+const _ = application.operator;
+
 
 /**
  * @param {Params}  params     自定义参数
@@ -20,7 +22,8 @@ module.exports = async function (params, context, logger) {
     let currentDateEnd = dayjs().endOf('day').valueOf();
     let query = {
         message_send_def: { _id: record._id },
-        send_start_datetime: { $gte: currentDateStart, $lte: currentDateEnd },
+        send_start_datetime: _.gte(currentDateStart),
+        send_start_datetime: _.lte(currentDateEnd),
     };
 
     const currentDateRecord = await application.data.object('object_message_send').select('_id', 'batch_no').where(query).findOne();
