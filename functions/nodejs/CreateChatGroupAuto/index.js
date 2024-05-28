@@ -1,6 +1,3 @@
-// 通过 NPM dependencies 成功安装 NPM 包后此处可引入使用
-// 如安装 linq 包后就可以引入并使用这个包
-// const linq = require("linq");
 const { newLarkClient, batchOperation } = require('../utils');
 const { convertRecordsToGroupMenu } = require('../GroupMenuUtils/groupMenuConstructor');
 /**

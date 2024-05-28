@@ -104,7 +104,7 @@ module.exports = async function (params, context, logger) {
   // 根据消息记录查询消息已读状态，更新消息记录
   const updateMessageRecord = async ({ _id, message_id, option_send_channel, message_chat, accept_user }) => {
     try {
-      const readUsers = await getRendUsers(message_id);
+      const readUsers = await getReadUsers(message_id);
       if (readUsers.length > 0) {
         let updateRecord = { _id };
         if (option_send_channel === "option_user") {

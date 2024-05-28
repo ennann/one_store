@@ -11,7 +11,7 @@ const _ = application.operator;
 module.exports = async function (params, context, logger) {
   const currentDate = dayjs().format('YYYY-MM-DD');
   const currentTime = dayjs().valueOf(); // 当前时间
-  const timeBuffer = 1000 * 60 * 7; // 5 minutes buffer
+  const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
 
   const messageDefineFields = await application.metadata.object("object_chat_message_def").getFields();
   const fieldApiNames = messageDefineFields.map(item => item.apiName);
