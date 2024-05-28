@@ -8,7 +8,7 @@ const { batchOperation } = require("../utils");
  *
  * @return 函数的返回数据
  */
-module.exports = async function (params, context, logger) {c
+module.exports = async function (params, context, logger) {
   logger.info('开始执行任务批量取消', params);
   const { task_create_monitor } = params;
 
