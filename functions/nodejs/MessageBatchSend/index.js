@@ -12,20 +12,12 @@ module.exports = async function (params, context, logger) {
         throw new Error('已存在执行中发送消息任务');
     }
 
-    const { batch_no } = await faas.function('MessageGenerateBatchNumber').invoke({ record });
+    const { batch_no, message } = await faas.function('MessageGenerateBatchNumber').invoke({ record });
 
     if (!batch_no) {
         logger.error('生成批次号失败，请检查生成消息批次函数');
-        throw new Error('生成批次号失败');
+        return { code: -1, message };
     }
-
-    // 从 redis 里找 batch_no, 如果存在则说明已经生成过批次号
-    let batch_no_check = await baas.redis.get(batch_no);
-    if (batch_no_check) {
-        logger.error('当天已生成过批次号');
-        throw new Error('当天已生成过批次号');
-    }
-    
 
 
     let sendIds = [];
@@ -106,9 +98,6 @@ module.exports = async function (params, context, logger) {
             const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id)));
             const successRecords = sendMessageResult.filter(result => result.code === 0);
             const failRecords = sendMessageResult.filter(result => result.code !== 0);
-
-            // 成功发送消息，在此写入 redis 
-            await baas.redis.set(batch_no, new Date().getTime());
 
             let option_status;
             if (successRecords.length === sendMessageResult.length) {

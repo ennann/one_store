@@ -12,7 +12,7 @@ module.exports = async function (params, context, logger) {
     logger.info(`消息定时触发函数开始执行`, params);
 
     const currentDate = dayjs().format('YYYY-MM-DD');
-    const currentTime = dayjs().valueOf(); // 当前时间
+    const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
 
     const messageDefineFields = await application.metadata.object('object_chat_message_def').getFields();
@@ -34,8 +34,8 @@ module.exports = async function (params, context, logger) {
                     option_status: 'option_enable',
                     option_method: 'option_once',
                     boolean_public_now: false,
-                    datetime_publish: _.lte(currentTime), // 5分钟内的消息
-                    datetime_publish: _.gte(currentTime - timeBuffer),
+                    datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的消息
+                    datetime_publish: _.gte(currentTime),
                 }), // 一次性消息的条件
             ),
         )
@@ -67,7 +67,7 @@ module.exports = async function (params, context, logger) {
     };
 
     const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime >= triggerTime && currentTime <= triggerTime + timeBuffer;
+        return triggerTime >= currentTime && triggerTime <= currentTime + timeBuffer;
     };
 
     // 循环所有 messageDefineRecords

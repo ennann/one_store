@@ -29,7 +29,7 @@ module.exports = async function (params, context, logger) {
     const currentDateRecord = await application.data.object('object_message_send').select('_id', 'batch_no').where(query).findOne();
 
     if (currentDateRecord) {
-        return { code: 0, message: '当天已生成过批次号', batch_no: currentDateRecord.batch_no };
+        return { code: -1, message: '当天已生成过批次号' };
     } else {
         try {
             const records = await application.data.object('object_message_send').select('_id', 'batch_no').where({ message_send_def: record._id }).find();

@@ -71,6 +71,12 @@ module.exports = async function (params, context, logger) {
       params: { member_id_type: 'open_id' },
       data: { id_list: [open_id] },
     });
+    // 将用户拉入新的门店成员
+    // await application.data.object('object_store_staff').create({
+    //   store_staff: { _id: userRecord._id },
+    //   store_staff_department: { _id: newDepartmentRecord._id },
+    // });
+
   }
 
   // 将用户从旧的部门群聊中移除（飞书群成员 apaas）
@@ -78,16 +84,19 @@ module.exports = async function (params, context, logger) {
     // 删除该用户在该部门下所在的门店成员信息
     // 1.获取老部门的id
     const oldDepId = oldDepartmentRecord._id;
-    // 2.删除该部门下的该员工的所有门店成员信息
-       await application.data
+    // 2.获取该部门下的所有门店信息
+    let oldDepAllStore = application.data
        .object('object_store_staff')
-       .delete
-       .where(
-        application.operator.and({
-          store_staff_department: application.operator.contain(oldDepId),
-          store_staff:application.operator.contain(userRecord._id)
-        })
-       )
+       .select('_id','store_staff_department','store_staff')
+       .where({
+        store_staff: userRecord._id,
+        store_staff_department:oldDepId
+       }).find();
+
+    // 3.删除该部门下的该员工的所有门店成员信息
+    let idArray = oldDepAllStore.map(item => item._id); // 提取每个对象的 _id 属性值，生成新的数组
+  
+    await application.data.object("object_store_staff").batchDelete(idArray);
 
     let chatMemberRecord = await application.data.object('object_chat_member').select('_id').where({ store_chat: oldDepartmentChatGroup._id, chat_member: userRecord._id }).findOne();
 

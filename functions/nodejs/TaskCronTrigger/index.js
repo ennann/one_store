@@ -10,7 +10,7 @@ const _ = application.operator;
  */
 module.exports = async function (params, context, logger) {
     logger.info('任务触发器函数开始执行');
-    const currentTime = dayjs().valueOf(); // 当前时间
+    const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
 
     // 查询所有的任务定义数据
@@ -92,7 +92,7 @@ module.exports = async function (params, context, logger) {
     };
 
     const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime >= triggerTime && currentTime <= triggerTime + timeBuffer;
+        return triggerTime >= currentTime && triggerTime <= currentTime + timeBuffer;
     };
 
     // 循环所有 taskDefineRecords

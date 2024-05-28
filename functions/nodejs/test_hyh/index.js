@@ -10,15 +10,25 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+const oldDepAllStore = await application.data
+  .object('object_store_staff')
+  .select('_id')
+  .where({
+    store_staff: 1799558631371860,
+    store_staff_department:1798306972572779
+   })
+   .find();
+  logger.info(oldDepAllStore)
+  
+  let idArray = oldDepAllStore[0].map(item => item._id); // 提取每个对象的 _id 属性值，生成新的数组
 
-  let oldDepAllStore =
-await application.data
-.object('object_store_staff')
-.select('_id','store_staff','store_staff_department')
-.where({"_id": '1800293549344772'})
-.find();
-logger.info(oldDepAllStore)
+  console.log(idArray); // 输出新生成的数组包含的 _id 值
 
+ await application.data.object("object_store_staff").batchDelete(idArray);
+
+// logger.info(filteredCollection)
+
+return 
   const client = await newLarkClient({ userId: context?.user?._id }, logger); // 创建 Lark 客户端
   // 日志功能
   // logger.info(`${new Date()} 函数开始执行`);
@@ -121,4 +131,5 @@ const feishu_chat_menu_catalogs = await application.data.object('object_chat_men
 logger.info("测试数据：",feishu_chat_menu_catalogs)
  return 
   // 在这里补充业务代码
+
 }
