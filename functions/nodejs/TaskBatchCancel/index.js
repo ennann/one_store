@@ -8,7 +8,7 @@ const { batchOperation } = require("../utils");
  *
  * @return 函数的返回数据
  */
-module.exports = async function (params, context, logger) {
+module.exports = async function (params, context, logger) {c
   logger.info('开始执行任务批量取消', params);
   const { task_create_monitor } = params;
 
@@ -43,7 +43,7 @@ module.exports = async function (params, context, logger) {
   }));
 
   // 批量更新任务状态
-  await batchOperation(logger, 'object_task_create_monitor', 'batchUpdate', updateData);
+  await batchOperation(logger, 'object_store_task', 'batchUpdate', updateData);
   logger.info(`任务批量取消成功，共取消${taskRecords.length}个任务`);
   return { code: 0, message: '任务批量取消成功' };
 

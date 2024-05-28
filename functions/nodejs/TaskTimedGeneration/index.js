@@ -441,7 +441,7 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
   let sourceDepartmentName = '';
   if (taskDefRecord.publish_department._id || taskDefRecord.publish_department.id) {
     const sourceDepartment = await application.data.object("_department").select("_name").where({ _id: taskDefRecord.publish_department._id || taskDefRecord.publish_department.id }).findOne();
-    logger.info(sourceDepartment);
+    // logger.info(`根据任务定义[${taskDefRecord._id}]获取的部门详情`, sourceDepartment);
     sourceDepartmentName = sourceDepartment?._name?.find(item => item.language_code === 2052)?.text || sourceDepartment?._name?.find(item => item.language_code === 1033)?.text || "未知部门";
   } else {
     logger.warn(任务定义内的发布部门为空);

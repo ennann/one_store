@@ -53,7 +53,7 @@ module.exports = async function (params, context, logger) {
   let newDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: newDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
   // let oldDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: oldDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
   let oldDepartmentChatGroup = {};
-  if(oldDepartmentList[0] != 0 && !oldDepartmentRecord){
+  if(oldDepartmentList[0] != 0 && oldDepartmentRecord){
     oldDepartmentChatGroup = await application.data.object('object_feishu_chat').select('_id', 'chat_id', 'chat_link', 'chat_group_type').where({ department: oldDepartmentRecord._id, chat_group_type: 'option_business' }).findOne();
   }
 

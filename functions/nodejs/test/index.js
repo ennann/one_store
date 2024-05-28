@@ -19,7 +19,7 @@ module.exports = async function (params, context, logger) {
   const redisValue = await baas.redis.setex("2024-05-21", 24 * 60 * 60, 1);
 
 
-  let object_task_def_record = await application.data.object('object_task_def').select('publish_department').findOne();
+  let object_task_def_record = await application.data.object('object_chat_message_def').select('publish_department').findOne();
   logger.info(object_task_def_record)
   logger.info(object_task_def_record.publish_department);
   taskDefine = object_task_def_record

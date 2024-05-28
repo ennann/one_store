@@ -3,11 +3,11 @@
   "apiName": "GetLarkChatMsg",
   "label": {
     "zh_CN": "获取飞书群详细信息",
-    "en_US": ""
+    "en_US": "Get Lark Chat Msg"
   },
   "description": {
-    "zh_CN": "自定义函数",
-    "en_US": "Custom Function"
+    "zh_CN": "获取飞书群组详细信息",
+    "en_US": "Get Lark Chat Msg from Lark"
   },
   "longTaskMode": false,
   "frontendSDKInvokable": true,

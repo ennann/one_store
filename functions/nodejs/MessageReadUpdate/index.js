@@ -150,7 +150,7 @@ module.exports = async function (params, context, logger) {
     try {
       const msgList = await getMsgRecord(_id);
       if (msgList.length > 0) {
-        const updateFun = createLimiter(updateMessageRecord, { perSecond: 5 });
+        const updateFun = createLimiter(updateMessageRecord, { perSecond = 2, perMinute = 400});
         const result = await Promise.all(msgList.map(i => updateFun(i)));
         const successRes = result.filter(i => i.code === 0);
         const failRes = result.filter(i => i.code === -1);

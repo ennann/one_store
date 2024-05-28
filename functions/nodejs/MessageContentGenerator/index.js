@@ -10,6 +10,7 @@ const { newLarkClient, createLimiter } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+  logger.info(`根据消息定义生成消息卡片内容函数开始执行`, params);
   // https://open.feishu.cn/document/server-docs/im-v1/message-content-description/create_json#45e0953e
   // https://open.feishu.cn/document/server-docs/im-v1/message/create?appId=cli_a68809f3b7f9500d
 
@@ -69,6 +70,8 @@ module.exports = async function (params, context, logger) {
         },
       }
     }
+    logger.info(`最终生成的消息内容为`, { ...content, receive_id_type });
+
     return {
       msg_type: "interactive",
       content: JSON.stringify(info)
