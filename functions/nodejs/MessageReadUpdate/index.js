@@ -193,10 +193,10 @@ module.exports = async function (params, context, logger) {
   };
 
   try {
-    const btachList = await getBatchRecords();
-    if (btachList.length > 0) {
+    const batchList = await getBatchRecords();
+    if (batchList.length > 0) {
       const updateFun = createLimiter(updateRecordFun, { perSecond: 5 });
-      const result = await Promise.all(btachList.map(item => updateFun(item._id)));
+      const result = await Promise.all(batchList.map(item => updateFun(item._id)));
       const successRes = result.filter(i => i.code === 0);
       const failRes = result.filter(i => i.code === -1);
       const noRunRes = result.filter(i => i.code === -2);
