@@ -10,6 +10,7 @@ const _ = application.operator;
  */
 module.exports = async function (params, context, logger) {
     logger.info('任务触发器函数开始执行');
+    const currentDate = dayjs().format('YYYY-MM-DD');
     const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
     logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}`);
@@ -109,7 +110,7 @@ module.exports = async function (params, context, logger) {
     };
 
     const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime <= triggerTime && triggerTime <= currentTime + timeBuffer;
+        return currentTime - timeBuffer <= triggerTime && triggerTime <= currentTime;
     };
 
     const valuedTaskDefineList = [];
@@ -123,11 +124,14 @@ module.exports = async function (params, context, logger) {
 
         if (task.option_method === 'option_cycle') {
             const triggerDates = calculateTriggerDates(task);
-            if (triggerDates.includes(dayjs(currentTime).format('YYYY-MM-DD'))) {
-                const triggerTime = dayjs(`${dayjs(currentTime).format('YYYY-MM-DD')} ${dayjs(task.datetime_start).format('HH:mm:ss')}`).valueOf();
+            if (triggerDates.includes(currentDate)) {
+                logger.info(`任务定义 ${task.task_number} 的触发日期: ${currentDate} 在触发日期内`, triggerDates);
+                const triggerTime = dayjs(`${currentDate} ${dayjs(task.datetime_start).format('HH:mm:ss')}`).valueOf();
                 if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
                     valuedTaskDefineList.push(task);
                 }
+            } else {
+                logger.info(`任务定义 ${task.task_number} 不在触发日期内: ${dayjs(task.datetime_start).format('YYYY-MM-DD  HH:mm:ss')}`, triggerDates);
             }
         }
     }

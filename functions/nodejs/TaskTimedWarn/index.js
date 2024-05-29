@@ -43,8 +43,10 @@ module.exports = async function (params, context, logger) {
     const warningTasks = filterWarningTasks(tasks, currentTime, logger);
     const messageCardSendDataList = await generateMessageCardSendData(warningTasks, logger);
 
+    const client = await newLarkClient({ userId: context.user._id }, logger);
+
     const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
-    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(data => limitedSendFeishuMessage(data)));
+    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(data => limitedSendFeishuMessage(data, client)));
 
     const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
     const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
@@ -260,9 +262,9 @@ async function getDepartmentChatId(departmentId) {
     return chat ? chat.chat_id : null;
 }
 
-const sendFeishuMessage = async messageCardSendData => {
+const sendFeishuMessage = async (messageCardSendData, client) => {
     try {
-        await faas.function('MessageCardSend').invoke(messageCardSendData);
+        await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
         return { code: 0, message: `飞书消息发送成功`, result: 'success' };
     } catch (error) {
         return { code: -1, message: error.message, result: 'failed' };

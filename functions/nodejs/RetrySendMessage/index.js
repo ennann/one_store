@@ -1,8 +1,5 @@
-// 通过 NPM dependencies 成功安装 NPM 包后此处可引入使用
-// 如安装 linq 包后就可以引入并使用这个包
-// const linq = require("linq");
 const dayjs = require('dayjs');
-const { createLimiter } = require('../utils');
+const { createLimiter, newLarkClient } = require('../utils');
 /**
  * @param {Params}  params     自定义参数
  * @param {Context} context    上下文参数，可通过此参数下钻获取上下文变量信息等
@@ -98,6 +95,10 @@ module.exports = async function (params, context, logger) {
     };
 
     // 发送消息
+
+    // 创建飞书SDK客户端
+    const client = await newLarkClient({ userId: context.user._id }, logger);
+
     const sendMessage = async ({ _id, option_send_channel, message_chat, accept_user, content, msg_type }) => {
         const receive_id_type = option_send_channel === 'option_group' ? 'chat_id' : 'user_id';
         const msgInfo = { content, msg_type, receive_id_type };
@@ -117,7 +118,7 @@ module.exports = async function (params, context, logger) {
         }
 
         try {
-            const funList = ids.map(receive_id => faas.function('MessageCardSend').invoke({ ...msgInfo, receive_id }));
+            const funList = ids.map(receive_id => faas.function('MessageCardSend').invoke({ ...msgInfo, receive_id, client }));
             const result = await Promise.all(funList);
             return result.map(item => ({
                 ...item,

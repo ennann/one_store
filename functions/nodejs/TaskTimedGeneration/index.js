@@ -1,5 +1,5 @@
 const dayjs = require('dayjs');
-const { createLimiter } = require('../utils');
+const { createLimiter, newLarkClient } = require('../utils');
 const _ = application.operator;
 
 /**
@@ -11,11 +11,16 @@ const _ = application.operator;
  */
 module.exports = async function (params, context, logger) {
     logger.info(`批量创建门店任务开始执行`, params);
+
     const { task_def_record } = params;
     if (!task_def_record) {
         logger.warn('未传入有效的任务定义记录');
         return { code: -1, message: '未传入有效的任务定义记录' };
     }
+
+    const client = await newLarkClient({ userId: context.user._id }, logger);
+
+
     // 1. 第一步根据任务定义列表创建任务处理记录（任务批次）
     // 为任务定义实例记录生成任务批次号并创建任务处理记录（任务批次）
     const taskBatchNumberCreateResult = await createSecondLevelTaskBatch(task_def_record, logger);
@@ -38,7 +43,7 @@ module.exports = async function (params, context, logger) {
             const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger);
             
             const cardDataList = res.cardDataList;
-            const sendFeishuMessageResults = await Promise.all(cardDataList.map(item => limitedSendFeishuMessage(item)));
+            const sendFeishuMessageResults = await Promise.all(cardDataList.map(item => limitedSendFeishuMessage(item, client)));
             const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
             const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
             logger.info(`抄送人飞书消息发送结果，总数${sendFeishuMessageResults.length}，成功${sendFeishuMessageSuccess.length}，失败${sendFeishuMessageFail.length}`);
@@ -537,14 +542,9 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
  * @param {*} messageCardSendData
  * @returns
  */
-const sendFeishuMessage = async messageCardSendData => {
+const sendFeishuMessage = async (messageCardSendData, client) => {
     try {
-        await faas.function('MessageCardSend').invoke({
-            receive_id_type: messageCardSendData.receive_id_type,
-            receive_id: messageCardSendData.receive_id,
-            msg_type: messageCardSendData.msg_type,
-            content: messageCardSendData.content,
-        });
+        await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
         return { code: 0, message: `飞书消息发送成功`, result: 'success' };
     } catch (error) {
         return {

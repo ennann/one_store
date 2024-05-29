@@ -14,8 +14,9 @@ module.exports = async function (params, context, logger) {
     const currentDate = dayjs().format('YYYY-MM-DD');
     const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
-    logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}`);
-
+    logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}, 当前日期: ${currentDate}`);
+    logger.info(`减去后的时间: ${currentTime - timeBuffer}, ${dayjs(currentTime - timeBuffer).format('YYYY-MM-DD HH:mm:ss')}`);
+    
     const messageDefineFields = await application.metadata.object('object_chat_message_def').getFields();
     const fieldApiNames = messageDefineFields.map(item => item.apiName);
 
@@ -42,7 +43,7 @@ module.exports = async function (params, context, logger) {
         )
         .find();
     
-    logger.info(`查询到的消息定义数量: ${messageDefineRecords.length}`, messageDefineRecords.map(item => item._id));
+    logger.info(`查询到的消息定义数量: ${messageDefineRecords.length}`, messageDefineRecords.map(item => item.number));
     
     if (messageDefineRecords.length == 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
 
@@ -85,7 +86,7 @@ module.exports = async function (params, context, logger) {
     };
 
     const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime <= triggerTime && triggerTime <= currentTime + timeBuffer;
+        return currentTime - timeBuffer <= triggerTime && triggerTime <= currentTime;
     };
 
     let valuedMessageDefineList = [];
@@ -99,15 +100,19 @@ module.exports = async function (params, context, logger) {
 
         if (message.option_method === 'option_cycle') {
             const triggerDates = calculateTriggerDates(message);
+            
             if (triggerDates.includes(currentDate)) {
+                logger.info(`消息定义 ${message.number} 的触发日期: ${currentDate} 在触发日期内`, triggerDates);
                 const triggerTime = dayjs(`${currentDate} ${dayjs(message.datetime_start).format('HH:mm:ss')}`).valueOf();
                 if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
                     valuedMessageDefineList.push(message);
                 }
+            } else {
+                logger.info(`消息定义 ${message.number} 不在触发日期内`,dayjs(message.datetime_start).format('YYYY-MM-DD HH:mm:ss'), triggerDates);
             }
         }
     }
-    logger.info(`有效的消息定义数量: ${valuedMessageDefineList.length}`, valuedMessageDefineList.map(item => item._id));
+    logger.info(`有效的消息定义数量: ${valuedMessageDefineList.length}`, valuedMessageDefineList.map(item => item.number));
 
     // 创建一个函数，用于调用消息生成函数，最后使用 Promise.all 来并发执行 valuedMessageDefineList 内的消息定义
     const invokeMessageBatchSendFunction = message_def => {

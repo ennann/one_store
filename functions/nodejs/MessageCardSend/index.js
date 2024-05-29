@@ -1,4 +1,3 @@
-const { newLarkClient } = require('../utils');
 // todo: 确认函数修改后的影响范围
 
 /**
@@ -9,7 +8,7 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    const { receive_id_type, receive_id, msg_type, content } = params;
+    const { receive_id_type, receive_id, msg_type, content, client } = params;
     const receiveIdTypes = new Set(['open_id', 'user_id', 'email', 'union_id', 'chat_id']);
 
     // 判断 receive_id_type 是否合法
@@ -24,7 +23,6 @@ module.exports = async function (params, context, logger) {
         return { code: -1, message: 'receive_id 或 content 不能为空' };
     }
 
-    const client = await newLarkClient({ userId: context.user._id }, logger);
     try {
         let response = await client.im.message.create({
             params: { receive_id_type },

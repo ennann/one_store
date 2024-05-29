@@ -1,5 +1,5 @@
 const dayjs = require('dayjs');
-const { createLimiter } = require('../utils');
+const { createLimiter, newLarkClient } = require('../utils');
 
 module.exports = async function (params, context, logger) {
     logger.info(`批量发送消息 函数开始执行`, params);
@@ -66,14 +66,18 @@ module.exports = async function (params, context, logger) {
         logger.error('消息卡片内容生成失败，请关注功能。失败原因：', error);
         return { code: -1, message: '消息卡片内容生成失败' };
     }
-    
+
     // 发送消息，从 messageContent 解构出卡片内容，接收方类型
+
+    // 创建飞书SDK客户端
+    const client = await newLarkClient({ userId: context.user._id }, logger);
+
     const sendMessage = async receive_id => {
         const paramsData = { ...messageContent, receive_id };
 
         // logger.info({ paramsData });
         try {
-            const res = await faas.function('MessageCardSend').invoke({ ...paramsData });
+            const res = await faas.function('MessageCardSend').invoke({ ...paramsData, client });
             return { ...res, receive_id };
         } catch (error) {
             logger.error(`发送消息失败 - `, paramsData, error);
@@ -158,7 +162,7 @@ module.exports = async function (params, context, logger) {
                         message_send_batch: { _id: recordId }, // 消息发送批次
                         message_define: record, // 消息定义记录
                     });
-                    
+
                     logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务结果', { res });
                     return { code: 0, message: '批量发送消息成功' };
                 } catch (error) {
