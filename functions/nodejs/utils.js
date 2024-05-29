@@ -25,20 +25,20 @@ async function newLarkClient(params, logger) {
       }
       logger && logger.info('调用开放平台接口失败，', ...detail);
 
-      if (userId) {
-        try {
-          await application.msg.notifyCenter.create({
-            icon: 'error',
-            title: new kunlun.type.Multilingual({
-              zh: '调用开放平台接口失败',
-            }),
-            detail: new kunlun.type.Multilingual({
-              zh: detail.join(''),
-            }),
-            target_users: [userId],
-          });
-        } catch (e) { }
-      }
+    //   if (userId) {
+    //     try {
+    //       await application.msg.notifyCenter.create({
+    //         icon: 'error',
+    //         title: new kunlun.type.Multilingual({
+    //           zh: '调用开放平台接口失败',
+    //         }),
+    //         detail: new kunlun.type.Multilingual({
+    //           zh: detail.join(''),
+    //         }),
+    //         target_users: [userId],
+    //       });
+    //     } catch (e) { }
+    //   }
 
       return Promise.reject(error);
     },

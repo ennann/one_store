@@ -70,31 +70,49 @@ module.exports = async function (params, context, logger) {
     logger.info(`查询到的任务定义数量: ${taskDefineRecords.length}`);
     if (taskDefineRecords.length == 200) logger.warn('查询到任务定义数量达到200条，可能有遗漏');
 
-    const unitMapping = {
-        option_day: 'day',
-        option_week: 'week',
-        option_month: 'month',
-        option_quarter: { unit: 'month', factor: 3 },
-        option_half_year: { unit: 'month', factor: 6 },
-        option_year: 'year',
-    };
+    const calculateTriggerDates = (task) => {
+        const unitMapping = {
+            option_day: 'day',
+            option_week: 'week',
+            option_month: 'month',
+            option_quarter: { unit: 'month', factor: 3 },
+            option_half_year: { unit: 'month', factor: 6 },
+            option_year: 'year',
+        };
 
-    const valuedTaskDefineList = [];
+        const { datetime_start: startTime, datetime_end: endTime, option_time_cycle: cycleType, repetition_rate: repetitionRate } = task;
+        const startDate = dayjs(startTime);
+        const endDate = dayjs(endTime);
+        let unit, factor = 1;
 
-    const calculateTriggerDates = (startDate, endDate, repetitionRate, unit) => {
+        if (unitMapping[cycleType]) {
+            if (typeof unitMapping[cycleType] === 'object') {
+                unit = unitMapping[cycleType].unit;
+                factor = unitMapping[cycleType].factor;
+            } else {
+                unit = unitMapping[cycleType];
+            }
+        } else {
+            logger.warn(`未知的周期类型: ${cycleType}`);
+            return [];
+        }
+
         const triggerDates = [];
         let nextTriggerDate = startDate;
 
         while (nextTriggerDate.isBefore(endDate) || nextTriggerDate.isSame(endDate)) {
             triggerDates.push(nextTriggerDate.format('YYYY-MM-DD'));
-            nextTriggerDate = nextTriggerDate.add(repetitionRate, unit);
+            nextTriggerDate = nextTriggerDate.add(repetitionRate * factor, unit);
         }
+
         return triggerDates;
     };
 
     const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return triggerTime >= currentTime && triggerTime <= currentTime + timeBuffer;
+        return currentTime <= triggerTime && triggerTime <= currentTime + timeBuffer;
     };
+
+    const valuedTaskDefineList = [];
 
     // 循环所有 taskDefineRecords
     for (const task of taskDefineRecords) {
@@ -104,51 +122,22 @@ module.exports = async function (params, context, logger) {
         }
 
         if (task.option_method === 'option_cycle') {
-            const { datetime_start: startTime, datetime_end: endTime, option_time_cycle: cycleType, repetition_rate: repetitionRate } = task;
-            const startDate = dayjs(startTime);
-            const endDate = dayjs(endTime);
-            let unit,
-                factor = 1;
-
-            if (unitMapping[cycleType]) {
-                if (typeof unitMapping[cycleType] === 'object') {
-                    unit = unitMapping[cycleType].unit;
-                    factor = unitMapping[cycleType].factor;
-                } else {
-                    unit = unitMapping[cycleType];
-                }
-            } else {
-                logger.warn(`未知的周期类型: ${cycleType}`);
-                continue;
-            }
-
-            const triggerDates = calculateTriggerDates(startDate, endDate, repetitionRate * factor, unit);
-
+            const triggerDates = calculateTriggerDates(task);
             if (triggerDates.includes(dayjs(currentTime).format('YYYY-MM-DD'))) {
-                const triggerTime = dayjs(`${dayjs(currentTime).format('YYYY-MM-DD')} ${startDate.format('HH:mm:ss')}`).valueOf();
-
+                const triggerTime = dayjs(`${dayjs(currentTime).format('YYYY-MM-DD')} ${dayjs(task.datetime_start).format('HH:mm:ss')}`).valueOf();
                 if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
                     valuedTaskDefineList.push(task);
                 }
             }
         }
     }
-    logger.info(`查询到的任务定义数量: ${valuedTaskDefineList.length}`);
-
-    // return valuedTaskDefineList;
+    logger.info(`有效的任务定义数量: ${valuedTaskDefineList.length}`);
 
     // 创建一个函数，用于调用任务生成函数，最后使用 Promise.all 来并发执行 valuedTaskDefineList 内的任务定义
     const invokeTaskGenerateFunction = async taskDefine => {
         // 调用任务生成函数
         return faas.function('TaskTimedGeneration').invoke({ task_def_record: taskDefine });
     };
-
-    // // 并发执行任务生成函数
-    // const taskGenerationResult = await Promise.all(valuedTaskDefineList.map(invokeTaskGenerateFunction));
-
-    // const taskGenerationResult = await faas.function('TaskTimedGeneration').invoke({ object_task_defs: valuedTaskDefineList });
-    // const successList = taskGenerationResult.data.successfulTasks;
-    // const failList = taskGenerationResult.data.failedTasks;
 
     // 这里不使用 Promise.all 来并发执行任务定义，而是使用 for 循环来逐个执行
     const taskGenerationResult = [];
@@ -168,3 +157,4 @@ module.exports = async function (params, context, logger) {
         failList,
     };
 };
+
