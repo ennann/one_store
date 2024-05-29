@@ -26,12 +26,12 @@ module.exports = async function (params, context, logger) {
                 .where({ store_chat: { _id } })
                 .select('_id', 'chat_member')
                 .findStream(records => {
-                    const ids = records.map(i => i.chat_member._id);
+                    const ids = records.map(i => i.chat_member?._id);
                     chatMemberIds.push(...ids);
                 });
             return chatMemberIds;
         } catch (error) {
-            logger.error(`获取飞书群 ${_id} 成员失败`, error);
+            logger.error(`获取飞书群成员 ${_id} 失败`, error);
             return [];
         }
     };
@@ -50,10 +50,10 @@ module.exports = async function (params, context, logger) {
 
             const chatMemberIds = await getChatMembers(chat_record._id);
 
-            const allMemberIds = [...new Set([...(chat_record.chat_managers?.map(i => i._id) || []), ...chatMemberIds, chat_record.chat_owner?._id])];
+            const allMemberIds = Array.from(new Set([...(chat_record.chat_managers?.map(i => i._id) || []), ...chatMemberIds, chat_record.chat_owner?._id].filter(Boolean)));
 
             return {
-                department: { _id: chat_record.department._id },
+                department: { _id: chat_record.department?._id },
                 message_chat: { _id: chat_record._id },
                 unread_count: allMemberIds.length,
                 allMemberIds,
@@ -91,7 +91,7 @@ module.exports = async function (params, context, logger) {
                 result: record.code === 0 ? 'option_success' : 'option_failed',
             };
 
-            let user_ids;
+            let user_ids = [];
             // 当消息定义发送渠道为群组时，获取群组信息
             if (message_define.send_channel === 'option_group') {
                 const { allMemberIds, ...rest } = await getChatInfo(record.data);
@@ -124,7 +124,6 @@ module.exports = async function (params, context, logger) {
                 logger.info('创建消息阅读记录结果', messageReadRecordResults);
             }
             return { code: 0, message_send_record, messageReadRecordResults };
-
         } catch (error) {
             logger.error(`创建消息发送记录 ${record.data.message_id} 失败`, error);
             return { code: -1, message: `创建消息发送记录 ${record.data.message_id} 失败` };

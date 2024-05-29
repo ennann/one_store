@@ -36,8 +36,8 @@ module.exports = async function (params, context, logger) {
                 code: 0,
             };
         } catch (error) {
-            logger.error(`创建消息阅读记录 ${_id} 失败`, error);
-            return { code: -1, message: `创建消息发送记录 ${_id} 的阅读记录失败，对应的 userId 为 ${userId}` };
+            logger.error(`创建消息阅读记录 ${_id} 失败，对应的 userId 为 ${userId}`, error);
+            return { code: -1, message: `创建消息阅读记录 ${_id} 的阅读记录失败，对应的 userId 为 ${userId}` };
         }
     };
 

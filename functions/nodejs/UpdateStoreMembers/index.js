@@ -88,5 +88,4 @@ module.exports = async function (params, context, logger) {
     await batchOperation(logger, 'object_store', 'batchUpdate', batchUpdateRecords, 500);
 
     // todo 完成子表门店成员信息的更新
-    
 };
