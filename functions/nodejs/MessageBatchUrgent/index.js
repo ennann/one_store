@@ -10,6 +10,8 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+logger.info('消息加急入参：',params)
+
   if (!params.batch_record) {
     throw new Error("缺少消息发送批次数据");
   }

@@ -20,7 +20,7 @@ const oldDepAllStore = await application.data
    .find();
   logger.info(oldDepAllStore)
   
-  let idArray = oldDepAllStore[0].map(item => item._id); // 提取每个对象的 _id 属性值，生成新的数组
+  let idArray = oldDepAllStore.map(item => item._id); // 提取每个对象的 _id 属性值，生成新的数组
 
   console.log(idArray); // 输出新生成的数组包含的 _id 值
 

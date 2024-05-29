@@ -85,7 +85,7 @@ module.exports = async function (params, context, logger) {
     // 1.获取老部门的id
     const oldDepId = oldDepartmentRecord._id;
     // 2.获取该部门下的所有门店信息
-    let oldDepAllStore = application.data
+    const oldDepAllStore = await application.data
        .object('object_store_staff')
        .select('_id','store_staff_department','store_staff')
        .where({

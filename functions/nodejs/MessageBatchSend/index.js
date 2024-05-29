@@ -9,16 +9,54 @@ module.exports = async function (params, context, logger) {
     const redisValue = await baas.redis.get(KEY);
 
     if (redisValue) {
-        throw new Error('已存在执行中发送消息任务');
+        logger.error('已存在执行中发送消息任务');
+        return { code: -1, message: '已存在执行中发送消息任务' };
+        // throw new Error('已存在执行中发送消息任务');
     }
 
     let sendIds = [];
     let errorNum = 0;
     const MAX_ERROR_NUM = 5;
 
+    // 计算触发日期列表
+    const calculateTriggerDates = (startDate, endDate, repetitionRate, unit) => {
+        const triggerDates = [];
+        let nextTriggerDate = startDate;
+
+        while (nextTriggerDate.isBefore(endDate) || nextTriggerDate.isSame(endDate)) {
+            triggerDates.push(nextTriggerDate.format('YYYY-MM-DD'));
+            nextTriggerDate = nextTriggerDate.add(repetitionRate, unit);
+        }
+
+        return triggerDates;
+    };
+
     const createSendRecord = async () => {
+        // 查找数据库中是否有发送批次记录
         try {
-            const batch_no = await faas.function('MessageGenerateBatchNumber').invoke({ record: record });
+            // 从数据库中查找最新的消息批从记录，判断是否在当天范围内
+            let messageBatchRecord = await application.data
+                .object('object_message_send')
+                .select('_id', 'batch_no', 'send_start_datetime')
+                .where({ message_send_def: record._id || record.id })
+                .orderByDesc('send_start_datetime')
+                .findOne();
+
+            if (messageBatchRecord) {
+                const send_start_datetime = dayjs(messageBatchRecord.send_start_datetime);
+                if (send_start_datetime.isAfter(dayjs().startOf('day'))) {
+                    logger.error('当天已有消息发送批次记录');
+                    return { code: -1, message: '当天已有消息发送批次记录' };
+                }
+            }
+        } catch (error) {
+            logger.error('查询消息发送批次记录失败', error);
+            return { code: -1, message: '查询消息发送批次记录失败' };
+        }
+
+        // 创建消息发送批次记录
+        try {
+            const batch_no = await faas.function('MessageGenerateBatchNumber').invoke({ record });
             const createData = {
                 batch_no,
                 option_status: 'option_sending',
@@ -27,10 +65,10 @@ module.exports = async function (params, context, logger) {
             };
             const res = await application.data.object('object_message_send').create(createData);
             logger.info('创建消息发送批次成功', res);
-            return res._id;
+            return { code: 0, recordId: res._id, batch_no };
         } catch (error) {
             logger.error('创建消息发送批次失败', error);
-            throw new Error('创建消息发送批次失败', error);
+            return { code: -1, message: '创建消息发送批次失败' };
         }
     };
 
@@ -38,56 +76,60 @@ module.exports = async function (params, context, logger) {
 
     const sendMessage = async receive_id => {
         const paramsData = { ...messageContent, receive_id };
-        logger.info({ paramsData });
+
+        // logger.info({ paramsData });
         try {
             const res = await faas.function('MessageCardSend').invoke({ ...paramsData });
-            errorNum = 0;
             return { ...res, receive_id };
         } catch (error) {
-            if (errorNum >= MAX_ERROR_NUM) {
-                errorNum = 0;
-                throw new Error(`发送消息失败超过最大次数${MAX_ERROR_NUM} - `, paramsData);
-            }
-            logger.info(error);
-            errorNum += 1;
-            sendMessage(receive_id);
+            logger.error(`发送消息失败 - `, paramsData, error);
+            return { code: -1, message: error.message, receive_id };
         }
     };
 
     try {
         if (!record.send_channel) {
-            throw new Error('没有选择飞书发送渠道');
+            logger.error('没有选择飞书发送渠道');
+            return { code: -1, message: '没有选择飞书发送渠道' };
         }
 
         if (record.send_channel === 'option_group') {
             if (!record.chat_rule) {
-                throw new Error('缺少群组筛选规则');
+                logger.error('缺少群组筛选规则');
+                return { code: -1, message: '缺少群组筛选规则' };
+                // throw new Error('缺少群组筛选规则');
             }
             const chatRecordList = await faas.function('DeployChatRange').invoke({ deploy_rule: record.chat_rule });
-            logger.info({ chatRecordList });
+            logger.info(`筛选到的群组数量: ${chatRecordList.length}`, chatRecordList);
             sendIds = chatRecordList.map(i => i.chat_id);
-            logger.info({ sendIds });
+            logger.info(`筛选到的群组数量: ${sendIds.length}`, sendIds);
         }
 
         if (record.send_channel === 'option_user') {
             if (!record.user_rule) {
-                throw new Error('缺少人员筛选规则');
+                logger.error('缺少人员筛选规则');
+                return { code: -1, message: '缺少人员筛选规则' };
             }
             const userList = await faas.function('DeployMemberRange').invoke({ user_rule: record.user_rule });
             sendIds = userList.map(i => i.user_id);
+            logger.info(`筛选到的人员数量: ${sendIds.length}，人员ID列表`, sendIds);
         }
 
         if (sendIds.length > 0) {
+            const { code, recordId, message, batch_no } = await createSendRecord(); // 创建消息批次记录
+            if (code !== 0) {
+                return { code, message: '创建消息发送批次失败，原因：' + message };
+            }
+
             await baas.redis.set(KEY, new Date().getTime());
-            const recordId = await createSendRecord();
+
             const limitSendMessage = createLimiter(sendMessage);
             logger.info({ sendIds });
             const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id)));
-            const successRecords = sendMessageResult.filter(result => result.code === 0);
-            const failRecords = sendMessageResult.filter(result => result.code !== 0);
-            logger.info(`消息总数：${sendMessageResult.length}`);
-            logger.info(`成功数量：${successRecords.length}`);
-            logger.info(`失败数量：${failRecords.length}`);
+
+            const successRecords = sendMessageResult.filter(result => result?.code === 0);
+            const failRecords = sendMessageResult.filter(result => result?.code !== 0);
+            logger.info(`消息总数：${sendMessageResult.length}; 成功消息数：${successRecords.length}; 失败消息数：${failRecords.length}`);
 
             let option_status;
             if (successRecords.length === sendMessageResult.length) {
@@ -110,24 +152,28 @@ module.exports = async function (params, context, logger) {
                         msg_type: messageContent.msg_type,
                         message_content: messageContent.content,
                     };
-                    logger.info({ updateData });
+                    logger.info(`更新消息发送批次记录`, updateData);
                     await application.data.object('object_message_send').update(updateData);
+
                     const res = await baas.tasks.createAsyncTask('MessageSendRecordCreate', {
                         message_send_result: sendMessageResult,
                         message_send_batch: { _id: recordId },
                         message_define: record,
                     });
-                    logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务', { res });
+                    logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务结果', { res });
+                    return { code: 0, message: '批量发送消息成功' };
                 } catch (error) {
-                    throw new Error('创建消息发送记录失败', error);
+                    logger.error('更新消息发送批次失败', error);
+                    return { code: -1, message: '更新消息发送批次失败' + error.message };
+                    // throw new Error('创建消息发送记录失败', error);
                 }
-                return { code: 0, message: '批量发送消息成功' };
             }
         }
     } catch (error) {
         logger.error('批量发送消息失败', error);
-        throw error;
+        return { code: -1, message: error.message };
+        // throw error;
     } finally {
-        await baas.redis.set(KEY, null);
+        await baas.redis.del(KEY);
     }
 };

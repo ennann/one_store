@@ -15,7 +15,7 @@ module.exports = async function (params, context, logger) {
         const records = await application.data
             .object('object_message_send')
             .select('_id', 'batch_no')
-            .where({ message_send_def: { _id: record._id } })
+            .where({ message_send_def: record._id || record.id })
             .find();
         const data = await application.data.object('object_chat_message_def').select('_id', 'number').where({ _id: record._id }).findOne();
         const newBatchNo = `${(records.length + 1).toString().padStart(6, '0')}`;

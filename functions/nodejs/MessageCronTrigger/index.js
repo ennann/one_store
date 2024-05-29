@@ -41,6 +41,7 @@ module.exports = async function (params, context, logger) {
             ),
         )
         .find();
+    
     logger.info(`查询到的消息定义数量: ${messageDefineRecords.length}`, messageDefineRecords.map(item => item._id));
     
     if (messageDefineRecords.length == 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
@@ -81,6 +82,8 @@ module.exports = async function (params, context, logger) {
 
         if (message.option_method === 'option_cycle') {
             const { datetime_start: startTime, datetime_end: endTime, option_time_cycle: cycleType, repetition_rate: repetitionRate } = message;
+            logger.info(`当前时间: ${currentTime} ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}，消息定义开始时间${startTime} ${dayjs(startTime).format('YYYY-MM-DD HH:mm:ss')}，消息定义结束时间${endTime} ${dayjs(endTime).format('YYYY-MM-DD HH:mm:ss')}`);
+
             const startDate = dayjs(startTime);
             const endDate = dayjs(endTime);
             let unit,
@@ -99,9 +102,10 @@ module.exports = async function (params, context, logger) {
             }
 
             const triggerDates = calculateTriggerDates(startDate, endDate, repetitionRate * factor, unit);
-
+            logger.info('当前消息定义周期的详情', message, '触发日期列表', triggerDates);
             if (triggerDates.includes(currentDate)) {
                 const triggerTime = dayjs(`${currentDate} ${startDate.format('HH:mm:ss')}`).valueOf();
+                logger.info(`触发时间时分秒:${startDate.format('HH:mm:ss')}， 触发时间戳: ${triggerTime} ${dayjs(triggerTime).format('YYYY-MM-DD HH:mm:ss')}`);
 
                 if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
                     valuedMessageDefineList.push(message);
@@ -109,7 +113,7 @@ module.exports = async function (params, context, logger) {
             }
         }
     }
-    logger.info(`有效的消息定义数量: ${valuedMessageDefineList.length}`);
+    logger.info(`有效的消息定义数量: ${valuedMessageDefineList.length}`, valuedMessageDefineList.map(item => item._id));
 
     // return valuedMessageDefineList;
 
@@ -131,9 +135,10 @@ module.exports = async function (params, context, logger) {
         const result = await invokeMessageBatchSendFunction(messageDef);
         messageGenerationResult.push(result);
     }
+    logger.info(`消息触发器函数执行完成, 结果数量: ${messageGenerationResult.length}`, messageGenerationResult);
 
-    const successList = messageGenerationResult.filter(item => item.code === 0);
-    const failList = messageGenerationResult.filter(item => item.code !== 0);
+    const successList = messageGenerationResult.filter(item => item?.code === 0);
+    const failList = messageGenerationResult.filter(item => item?.code !== 0 );
 
     logger.info(`消息定时触发函数执行完成, 成功数量: ${successList.length}, 失败数量: ${failList.length}`);
 
