@@ -4,7 +4,7 @@ const { createLimiter, newLarkClient } = require('../utils');
 module.exports = async function (params, context, logger) {
     logger.info(`批量发送消息 函数开始执行`, params);
 
-    const { record } = params;
+    const { record } = params; // 消息定义记录
     const KEY = record._id;
     const redisValue = await baas.redis.get(KEY);
 
@@ -122,7 +122,7 @@ module.exports = async function (params, context, logger) {
 
             await baas.redis.set(KEY, new Date().getTime());
 
-            const limitSendMessage = createLimiter(sendMessage);
+            const limitSendMessage = createLimiter(sendMessage, { perSecond: 30, perMinute: 500 });
             logger.info({ sendIds });
             const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id)));
 
