@@ -28,7 +28,7 @@ module.exports = async function (params, context, logger) {
                 _.and({
                     option_status: 'option_enable',
                     option_method: 'option_cycle',
-                    datetime_start: _.lte(currentTime),
+                    datetime_start: _.lte(currentTime - timeBuffer),
                     datetime_end: _.gte(currentTime),
                 }), // 周期消息的条件
                 _.and({
@@ -114,6 +114,7 @@ module.exports = async function (params, context, logger) {
         return faas.function('MessageBatchSend').invoke({ record: message_def });
     };
 
+    // 在 for 循环内执行消息批量发送，执行单个发送，避免触发限流
     const messageGenerationResult = [];
     for (const messageDef of valuedMessageDefineList) {
         const result = await invokeMessageBatchSendFunction(messageDef);

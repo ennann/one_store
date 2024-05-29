@@ -54,7 +54,7 @@ module.exports = async function (params, context, logger) {
                 _.and({
                     option_status: 'option_enable',
                     option_method: 'option_cycle',
-                    datetime_start: _.lte(currentTime),
+                    datetime_start: _.lte(currentTime - timeBuffer),
                     datetime_end: _.gte(currentTime),
                 }), // 周期任务的条件
                 _.and({

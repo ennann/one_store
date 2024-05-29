@@ -15,26 +15,12 @@ module.exports = async function (params, context, logger) {
     }
 
     let sendIds = [];
-    let errorNum = 0;
-    const MAX_ERROR_NUM = 5;
 
-    // 计算触发日期列表
-    const calculateTriggerDates = (startDate, endDate, repetitionRate, unit) => {
-        const triggerDates = [];
-        let nextTriggerDate = startDate;
-
-        while (nextTriggerDate.isBefore(endDate) || nextTriggerDate.isSame(endDate)) {
-            triggerDates.push(nextTriggerDate.format('YYYY-MM-DD'));
-            nextTriggerDate = nextTriggerDate.add(repetitionRate, unit);
-        }
-
-        return triggerDates;
-    };
-
+    // 创建消息发送批次记录
     const createSendRecord = async () => {
         // 查找数据库中是否有发送批次记录
         try {
-            // 从数据库中查找最新的消息批从记录，判断是否在当天范围内
+            // 从数据库中查找最新的消息批从记录，判断当天是否生成过消息批次记录，如果生成过则不再生成
             let messageBatchRecord = await application.data
                 .object('object_message_send')
                 .select('_id', 'batch_no', 'send_start_datetime')
@@ -72,8 +58,16 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    const messageContent = await faas.function('MessageContentGenerator').invoke({ record });
-
+    // 消息卡片内容生成
+    let messageContent;
+    try {
+        messageContent = await faas.function('MessageContentGenerator').invoke({ record });
+    } catch (error) {
+        logger.error('消息卡片内容生成失败，请关注功能。失败原因：', error);
+        return { code: -1, message: '消息卡片内容生成失败' };
+    }
+    
+    // 发送消息，从 messageContent 解构出卡片内容，接收方类型
     const sendMessage = async receive_id => {
         const paramsData = { ...messageContent, receive_id };
 
@@ -117,6 +111,7 @@ module.exports = async function (params, context, logger) {
 
         if (sendIds.length > 0) {
             const { code, recordId, message, batch_no } = await createSendRecord(); // 创建消息批次记录
+
             if (code !== 0) {
                 return { code, message: '创建消息发送批次失败，原因：' + message };
             }
@@ -129,7 +124,9 @@ module.exports = async function (params, context, logger) {
 
             const successRecords = sendMessageResult.filter(result => result?.code === 0);
             const failRecords = sendMessageResult.filter(result => result?.code !== 0);
-            logger.info(`消息总数：${sendMessageResult.length}; 成功消息数：${successRecords.length}; 失败消息数：${failRecords.length}`);
+            logger.info(
+                `批量发送消息函数发送消息完成，接下来开始存储记录。消息总数：${sendMessageResult.length}; 成功消息数：${successRecords.length}; 失败消息数：${failRecords.length}`,
+            );
 
             let option_status;
             if (successRecords.length === sendMessageResult.length) {
@@ -140,6 +137,7 @@ module.exports = async function (params, context, logger) {
                 option_status = 'option_part_success';
             }
 
+            // 更新消息发送批次记录
             if (recordId) {
                 try {
                     const updateData = {
@@ -156,10 +154,11 @@ module.exports = async function (params, context, logger) {
                     await application.data.object('object_message_send').update(updateData);
 
                     const res = await baas.tasks.createAsyncTask('MessageSendRecordCreate', {
-                        message_send_result: sendMessageResult,
-                        message_send_batch: { _id: recordId },
-                        message_define: record,
+                        message_send_result: sendMessageResult, // 消息发送结果
+                        message_send_batch: { _id: recordId }, // 消息发送批次
+                        message_define: record, // 消息定义记录
                     });
+                    
                     logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务结果', { res });
                     return { code: 0, message: '批量发送消息成功' };
                 } catch (error) {

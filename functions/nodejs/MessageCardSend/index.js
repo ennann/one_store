@@ -1,4 +1,5 @@
 const { newLarkClient } = require('../utils');
+// todo: 确认函数修改后的影响范围
 
 /**
  * @param {Params}  params     自定义参数
@@ -38,9 +39,43 @@ module.exports = async function (params, context, logger) {
             logger.error('消息发送失败', response);
             return { code: -1, message: '消息发送失败，原因：' + response.message };
         }
-        return response;
+        // 处理返回结果，根据后面所需要的数据，将 response 进行精简处理
+        // 正常情况下返回 { code: 0, message: '消息发送成功' }
+        return {
+            code: response.code,
+            data: {
+                message_id: response.data.message_id,
+                chat_id: response.data.chat_id,
+            },
+            receive_id,
+        };
     } catch (e) {
         logger.error('消息发送', e);
         return { code: -1, message: '消息发送失败，原因：' + e.message };
     }
 };
+
+/* 正常返回内容如下
+{
+  "code": 0,
+  "data": {
+    "body": {
+      "content": "{\"text\":\"test content\"}"
+    },
+    "chat_id": "oc_7ba2f003fa60ea3e6761052986361ea7",
+    "create_time": "1716965610376",
+    "deleted": false,
+    "message_id": "om_6a479546c6ef4e287166d53f273d26bc",
+    "msg_type": "text",
+    "sender": {
+      "id": "cli_a6b23873d463100b",
+      "id_type": "app_id",
+      "sender_type": "app",
+      "tenant_key": "10de27cde1ae975d"
+    },
+    "update_time": "1716965610376",
+    "updated": false
+  },
+  "msg": "success"
+}
+*/
