@@ -9,30 +9,27 @@
  *
  * @return 函数的返回数据
  */
- module.exports = async function (params, context, logger) {
-  // 日志功能
-  
-  // 获取新加入的成员列表
-  const newGroupUserList = params.group1;
-  // 获取已存在的成员列表
-  const alreadyGroupUserList = params.group2;
+module.exports = async function (params, context, logger) {
+    // 日志功能
 
-  const chatId = params.groupId;
-  const groupRes = await application.data
-  .object('object_feishu_chat')
-  .select("chat_owner","chat_managers")
-  .where({chat_id: chatId}).findOne();
+    // 获取新加入的成员列表
+    const newGroupUserList = params.group1;
+    // 获取已存在的成员列表
+    const alreadyGroupUserList = params.group2;
 
-  let filteredData = groupRes.chat_managers.map(manager => manager.id);
-  filteredData.push(groupRes.chat_owner?._id);
+    const chatId = params.groupId;
+    const groupRes = await application.data.object('object_feishu_chat').select('chat_owner', 'chat_managers').where({ chat_id: chatId }).findOne();
 
-  // 获取已存在的群成员的id列表
-  let alreadyGroupUserIds = alreadyGroupUserList.map(user => user.chat_member._id);
+    let filteredData = groupRes.chat_managers.map(manager => manager.id);
+    filteredData.push(groupRes.chat_owner?._id);
 
-  // 过滤新加入的成员列表，只保留那些在已存在的id列表中没有出现过的成员
-  let newUsers = newGroupUserList.filter(user => !alreadyGroupUserIds.includes(user.chat_member._id));
+    // 获取已存在的群成员的id列表
+    let alreadyGroupUserIds = alreadyGroupUserList.map(user => user.chat_member._id);
 
-  newUsers = newUsers.filter(user => !filteredData.includes(user.chat_member.id));
+    // 过滤新加入的成员列表，只保留那些在已存在的id列表中没有出现过的成员
+    let newUsers = newGroupUserList.filter(user => !alreadyGroupUserIds.includes(user.chat_member._id));
 
-  return {needAddGroup: newUsers}
-}
+    newUsers = newUsers.filter(user => !filteredData.includes(user.chat_member.id));
+
+    return { needAddGroup: newUsers };
+};

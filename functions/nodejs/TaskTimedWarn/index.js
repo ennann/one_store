@@ -264,8 +264,8 @@ async function getDepartmentChatId(departmentId) {
 
 const sendFeishuMessage = async (messageCardSendData, client) => {
     try {
-        await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
-        return { code: 0, message: `飞书消息发送成功`, result: 'success' };
+        let result = await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
+        return result;
     } catch (error) {
         return { code: -1, message: error.message, result: 'failed' };
     }

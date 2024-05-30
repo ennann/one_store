@@ -3,11 +3,11 @@
   "apiName": "PassRepeatStore",
   "label": {
     "zh_CN": "过滤多余的门店成员",
-    "en_US": null
+    "en_US": "Filter redundant store members"
   },
   "description": {
-    "zh_CN": "自定义函数",
-    "en_US": "Custom Function"
+    "zh_CN": "过滤多余的门店成员",
+    "en_US": "Filter redundant store members"
   },
   "isPublicAPI": false,
   "frontendSDKInvokable": true,
@@ -57,8 +57,8 @@
       "key": "groupId",
       "type": "Text",
       "required": false,
-      "label": "飞书群id",
-      "description": ""
+      "label": "飞书群ID",
+      "description": "飞书群ID"
     }
   ],
   "output": [

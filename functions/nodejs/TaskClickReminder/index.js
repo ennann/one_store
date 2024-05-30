@@ -13,7 +13,9 @@ const dayjs = require('dayjs');
  */
 module.exports = async function (params, context, logger) {
     logger.info('任务催办函数开始执行', params);
+
     const { object_task_create_monitor } = params;
+
     if (!object_task_create_monitor) {
         logger.error('未传入任务处理记录');
         return { code: false, message: '未传入任务处理记录' };
@@ -178,22 +180,19 @@ module.exports = async function (params, context, logger) {
         };
     }
 
-    const sendFeishuMessage = async messageCardSendData => {
+    const sendFeishuMessage = async (messageCardSendData, client) => {
         try {
-            await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client});
-            return { code: 0, message: `飞书消息发送成功`, result: 'success' };
+            let result = await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
+            return result;
         } catch (error) {
             return { code: -1, message: error.message, result: 'failed' };
         }
     };
 
-    
-
-
     //创建限流器
     const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
     //发送飞书卡片消息
-    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData)));
+    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData, client)));
     const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
     const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
     return {

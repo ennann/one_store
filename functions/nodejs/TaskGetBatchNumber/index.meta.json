@@ -1,13 +1,13 @@
 {
   "apiID": "one_store__c__function_aadghxtkqeabs",
-  "apiName": "GetTaskBatchNumber",
+  "apiName": "TaskGetBatchNumber",
   "label": {
     "zh_CN": "获取任务定义批次号",
-    "en_US": ""
+    "en_US": "Get Task Definition Batch Number"
   },
   "description": {
     "zh_CN": "根据任务定义，获取对应递增批次号",
-    "en_US": ""
+    "en_US": "Get the corresponding incremental batch number according to the task definition"
   },
   "longTaskMode": false,
   "frontendSDKInvokable": false,

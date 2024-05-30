@@ -26,7 +26,7 @@ module.exports = async function (params, context, logger) {
 
     if (taskBatchNumberCreateResult.code !== 0) {
         logger.error('任务处理记录（任务批次）生成失败', taskBatchNumberCreateResult);
-        return { code: -2, message: '任务处理记录（任务批次）生成失败' };
+        return { code: -2, message: '任务处理记录（任务批次）生成失败' + taskBatchNumberCreateResult.message };
     }
 
     //创建限流器
@@ -79,15 +79,21 @@ module.exports = async function (params, context, logger) {
  */
 async function createSecondLevelTaskBatch(taskDefine, logger) {
     try {
-        const { batch_no, batch_progress } = await faas.function('GetTaskBatchNumber').invoke({ object_task_def: taskDefine });
+        const { batch_no, batch_progress } = await faas.function('TaskGetBatchNumber').invoke({ object_task_def: taskDefine });
+
+        if ((!batch_no, !batch_progress)) {
+            logger.error('任务批次号生成失败');
+            return { code: -1, message: '任务批次号生成失败', task_id: taskDefine._id, task: taskDefine.task_number };
+        }
 
         // 判断 Redis 中是否含有任务定义主键
         const value = await baas.redis.get(taskDefine._id);
+
         if (value != null) {
-            logger.warn(`任务定义[${taskDefine._id}]的任务处理记录（任务批次）正在执行中...`);
+            logger.warn(`任务定义: ${taskDefine._id} (${taskDefine.task_number})的任务处理记录（任务批次）正在执行中...`, taskDefine.task_number);
             return {
                 code: -1,
-                message: `任务定义[${taskDefine._id}]的任务处理记录（任务批次）正在生成中...`,
+                message: `任务定义: ${taskDefine._id} (${taskDefine.task_number})的任务处理记录（任务批次）正在生成中...`,
                 task_id: taskDefine._id,
             };
         }
@@ -103,10 +109,10 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
             .findOne();
 
         if (res) {
-            logger.warn(`任务定义[${taskDefine._id}]的任务处理记录（任务批次）当天已存在...`);
+            logger.warn(`任务定义: ${taskDefine._id} (${taskDefine.task_number})的任务处理记录（任务批次）当天已存在...`);
             return {
                 code: -1,
-                message: `任务定义[${taskDefine._id}]的任务处理记录（任务批次）当天已存在...`,
+                message: `任务定义: ${taskDefine._id} (${taskDefine.task_number})的任务处理记录（任务批次）当天已存在...`,
                 task_id: taskDefine._id,
             };
         }
@@ -128,7 +134,7 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
 
         return {
             code: 0,
-            message: `任务定义[${taskDefine._id}]的任务处理记录（任务批次）创建成功`,
+            message: `任务定义: ${taskDefine._id} (${taskDefine.task_number})的任务处理记录（任务批次）创建成功`,
             task_id: taskDefine._id,
             task_create_monitor_id: createDataResult._id,
             object_task_create_monitor: createData,
@@ -169,6 +175,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
 
         const department_record = taskDefine.publish_department;
 
+        // option_01 代表任务处理人类型为门店，option_02 代表任务处理人类型为人员
         if (taskDefine.option_handler_type === 'option_01') {
             const chatRecordList = await faas.function('DeployChatRange').invoke({ deploy_rule: taskDefine.chat_rule });
 
@@ -263,6 +270,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
 
         if (createDataList.length > 0) {
             logger.info(`即将创建的门店普通任务数据数据，数据总数${createDataList.length}（仅展示第一个数据）`, createDataList[0]);
+
             const storeTaskCreateResults = await Promise.all(createDataList.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
             const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
             const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
@@ -394,6 +402,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                     data.content = JSON.stringify(content);
 
                     const object_task_def = await application.data.object('object_task_def').select('_id', 'send_channel').where({ _id: storeTask.task_def._id }).findOne();
+
                     if (object_task_def.send_channel === 'option_group') {
                         const object_feishu_chat = await application.data
                             .object('object_feishu_chat')
@@ -419,7 +428,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                 }
             }
 
-            return { code: 0, message: '创建门店普通任务成功', messageCardSendData: data };
+            return { code: 0, message: '创建门店普通任务成功，返回消息卡片内容', messageCardSendData: data };
         } catch (error) {
             logger.error('messageCardSendData--->', JSON.stringify(data, null, 2));
             logger.error(`组装门店普通任务[${storeTask._id}]发送消息卡片失败-->`, error);
@@ -548,12 +557,12 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
  */
 const sendFeishuMessage = async (messageCardSendData, client) => {
     try {
-        await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
-        return { code: 0, message: `飞书消息发送成功`, result: 'success' };
+        let result = await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
+        return result;
     } catch (error) {
         return {
             code: -1,
-            message: `飞书消息发送失败：` + error.message,
+            message: `调用飞书消息发送函数（MessageCardSend）失败：` + error.message,
             result: 'failed',
         };
     }
