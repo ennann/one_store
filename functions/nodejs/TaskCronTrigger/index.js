@@ -10,52 +10,31 @@ const _ = application.operator;
  */
 module.exports = async function (params, context, logger) {
     logger.info('任务触发器函数开始执行');
+
     const currentDate = dayjs().format('YYYY-MM-DD');
     const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
     const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
-    logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}`);
+
+    // 根据当前时间和缓冲时间计算触发时间范围
+    const triggerRangeStart = currentTime - timeBuffer;
+    const triggerRangeEnd = triggerRangeStart + timeBuffer;
+
+    logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}, 当前日期: ${currentDate}`);
+    logger.info(`减去后的时间: ${currentTime - timeBuffer}, ${dayjs(currentTime - timeBuffer).format('YYYY-MM-DD HH:mm:ss')}`);
+
+    const taskDefineFields = await application.metadata.object('object_task_def').getFields();
+    const fieldApiNames = taskDefineFields.map(item => item.apiName);
 
     // 查询所有的任务定义数据
     const taskDefineRecords = await application.data
         .object('object_task_def')
-        .select(
-            '_id',
-            'name', //任务名称
-            'task_number', //任务编码
-            'description', //任务描述
-            'task_tag', //任务分类（对象）
-            'option_method', //任务周期（全局选项）：计划任务：option_01，一次性任务：option_02
-            'option_time_cycle', //任务定义（全局选项）：天:option_day，周:option_week，月:option_month，季度:option_quarter，半年:option_half_year，年:option_year
-            'repetition_rate', //重复频率
-            'boolean_public_now', //是否立即发布
-            'datetime_publish', //发布时间
-            'datetime_start', //开始时间
-            'datetime_end', //结束时间
-            'deal_duration', //任务处理时长
-            'option_status', //状态（全局选项）：新建:option_01，启用:option_02，禁用:option_03
-            'send_channel', //发送渠道（全局选项）：发送到飞书群:option_group，发送到个人:option_user
-            'option_handler_type', //任务处理人类型（全局选项）：飞书群:option_01，责任人：option_02
-            'chat_rule', //群组筛选规则（对象）
-            'user_rule', //人员筛选规则（对象）
-            'carbon_copy', //任务抄送人（对象）
-            'option_is_check', //任务是否需要验收(全局选项)：是：option_yes，否：option_no
-            'check_flow', //任务验收流程(对象)
-            'task_publisher', //发布人（对象）
-            'publish_department', //发布人所属部门(对象)
-            'option_priority', //优先级(全局选项)：高:option_01，中:option_02，低:option_03
-            'option_upload_image', //任务要求上传图片
-            'option_input_information', //任务要求录入完成信息
-            'option_upload_attachment', //任务要求上传附件
-            'is_workday_support', //是否支持工作日历 布尔
-            'warning_time', //设置预警时间（小时）
-            'set_warning_time', //设置任务到期前提醒
-        )
+        .select(fieldApiNames)
         .where(
             _.or(
                 _.and({
                     option_status: 'option_enable',
                     option_method: 'option_cycle',
-                    datetime_start: _.lte(currentTime - timeBuffer),
+                    datetime_start: _.lte(currentTime + timeBuffer),
                     datetime_end: _.gte(currentTime),
                 }), // 周期任务的条件
                 _.and({
@@ -68,10 +47,11 @@ module.exports = async function (params, context, logger) {
             ),
         )
         .find();
+
     logger.info(`查询到的任务定义数量: ${taskDefineRecords.length}`);
     if (taskDefineRecords.length == 200) logger.warn('查询到任务定义数量达到200条，可能有遗漏');
 
-    const calculateTriggerDates = (task) => {
+    const calculateTriggerDates = task => {
         const unitMapping = {
             option_day: 'day',
             option_week: 'week',
@@ -84,7 +64,8 @@ module.exports = async function (params, context, logger) {
         const { datetime_start: startTime, datetime_end: endTime, option_time_cycle: cycleType, repetition_rate: repetitionRate } = task;
         const startDate = dayjs(startTime);
         const endDate = dayjs(endTime);
-        let unit, factor = 1;
+        let unit,
+            factor = 1;
 
         if (unitMapping[cycleType]) {
             if (typeof unitMapping[cycleType] === 'object') {
@@ -109,10 +90,6 @@ module.exports = async function (params, context, logger) {
         return triggerDates;
     };
 
-    const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime - timeBuffer <= triggerTime && triggerTime <= currentTime;
-    };
-
     const valuedTaskDefineList = [];
 
     // 循环所有 taskDefineRecords
@@ -124,11 +101,15 @@ module.exports = async function (params, context, logger) {
 
         if (task.option_method === 'option_cycle') {
             const triggerDates = calculateTriggerDates(task);
+            logger.info(`任务定义 ${task.task_number} 的触发日期: ${triggerDates}；周期开始时间: ${dayjs(task.datetime_start).format('YYYY-MM-DD HH:mm:ss')}`);
             if (triggerDates.includes(currentDate)) {
                 logger.info(`任务定义 ${task.task_number} 的触发日期: ${currentDate} 在触发日期内`, triggerDates);
                 const triggerTime = dayjs(`${currentDate} ${dayjs(task.datetime_start).format('HH:mm:ss')}`).valueOf();
-                if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
+
+                // 如果 triggerTime 在触发时间范围内，则将任务定义加入到有效任务定义列表中
+                if (triggerTime >= triggerRangeStart && triggerTime <= triggerRangeEnd) {
                     valuedTaskDefineList.push(task);
+                    logger.info(`任务定义 ${task.task_number} 在触发时间范围内: ${dayjs(task.datetime_start).format('YYYY-MM-DD  HH:mm:ss')}`);
                 }
             } else {
                 logger.info(`任务定义 ${task.task_number} 不在触发日期内: ${dayjs(task.datetime_start).format('YYYY-MM-DD  HH:mm:ss')}`, triggerDates);
@@ -161,4 +142,3 @@ module.exports = async function (params, context, logger) {
         failList,
     };
 };
-

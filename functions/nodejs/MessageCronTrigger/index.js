@@ -13,10 +13,12 @@ module.exports = async function (params, context, logger) {
 
     const currentDate = dayjs().format('YYYY-MM-DD');
     const currentTime = dayjs().startOf('minute').valueOf(); // 当前时间的分钟开始时间
-    const startOfDay = dayjs().startOf('day').valueOf(); // 当前日期的开始时间
-    const endOfDay = dayjs().endOf('day').valueOf(); // 当前日期的结束时间
+    const timeBuffer = 1000 * 60 * 5; // 5分钟的缓冲时间
 
-    const timeBuffer = 1000 * 60 * 5; // 5 minutes buffer
+    // 根据当前时间和缓冲时间计算触发时间范围
+    const triggerRangeStart = currentTime - timeBuffer;
+    const triggerRangeEnd = triggerRangeStart + timeBuffer;
+
     logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}, 当前日期: ${currentDate}`);
     logger.info(`减去后的时间: ${currentTime - timeBuffer}, ${dayjs(currentTime - timeBuffer).format('YYYY-MM-DD HH:mm:ss')}`);
 
@@ -24,44 +26,34 @@ module.exports = async function (params, context, logger) {
     const fieldApiNames = messageDefineFields.map(item => item.apiName);
 
     // 查询所有的消息定义数据
-    // 查询周期消息的定义数据
-    const cycleMessageDefineRecords = await application.data
+    const messageDefineRecords = await application.data
         .object('object_chat_message_def')
         .select(fieldApiNames)
         .where(
-            _.and({
-                option_status: 'option_enable',
-                option_method: 'option_cycle',
-                datetime_start: _.lte(startOfDay),
-                datetime_end: _.gte(endOfDay),
-            }),
+            _.or(
+                _.and({
+                    option_status: 'option_enable',
+                    option_method: 'option_cycle',
+                    datetime_start: _.lte(currentTime + timeBuffer),
+                    datetime_end: _.gte(currentTime),
+                }), // 周期消息的条件
+                _.and({
+                    option_status: 'option_enable',
+                    option_method: 'option_once',
+                    boolean_public_now: false,
+                    datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的消息
+                    datetime_publish: _.gte(currentTime),
+                }), // 一次性消息的条件
+            ),
         )
         .find();
-
-    // 查询一次性消息的定义数据
-    const onceMessageDefineRecords = await application.data
-        .object('object_chat_message_def')
-        .select(fieldApiNames)
-        .where(
-            _.and({
-                option_status: 'option_enable',
-                option_method: 'option_once',
-                boolean_public_now: false,
-                datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的消息
-                datetime_publish: _.gte(currentTime),
-            }),
-        )
-        .find();
-
-    // 合并两个查询的结果
-    const messageDefineRecords = [...cycleMessageDefineRecords, ...onceMessageDefineRecords];
 
     logger.info(
         `查询到的消息定义数量: ${messageDefineRecords.length}`,
         messageDefineRecords.map(item => item.number),
     );
 
-    if (messageDefineRecords.length == 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
+    if (messageDefineRecords.length === 200) logger.warn('查询到的消息定义数量达到200条，可能有遗漏');
 
     const calculateTriggerDates = message => {
         const unitMapping = {
@@ -102,10 +94,6 @@ module.exports = async function (params, context, logger) {
         return triggerDates;
     };
 
-    const isTriggerTime = (currentTime, triggerTime, timeBuffer) => {
-        return currentTime - timeBuffer <= triggerTime && triggerTime <= currentTime;
-    };
-
     let valuedMessageDefineList = [];
 
     // 循环所有 messageDefineRecords
@@ -117,12 +105,16 @@ module.exports = async function (params, context, logger) {
 
         if (message.option_method === 'option_cycle') {
             const triggerDates = calculateTriggerDates(message);
+            logger.info(message.number, `消息定义的触发日期: ${triggerDates}`, '周期开始时间', dayjs(message.datetime_start).format('YYYY-MM-DD HH:mm:ss'));
 
             if (triggerDates.includes(currentDate)) {
                 logger.info(`消息定义 ${message.number} 的触发日期: ${currentDate} 在触发日期内`, triggerDates);
-                const triggerTime = dayjs(`${currentDate} ${dayjs(message.datetime_start).format('HH:mm:ss')}`).valueOf();
-                if (isTriggerTime(currentTime, triggerTime, timeBuffer)) {
+                const triggerTime = dayjs(`${currentDate} ${dayjs(message.datetime_start).format('HH:mm')}`).valueOf();
+
+                //如果 triggerTime 在 triggerRangeStart 和 triggerRangeEnd 之间，则触发
+                if (triggerTime >= triggerRangeStart && triggerTime <= triggerRangeEnd) {
                     valuedMessageDefineList.push(message);
+                    logger.info(`消息定义 ${message.number} 在触发时间内`, triggerTime, triggerRangeStart, triggerRangeEnd);
                 }
             } else {
                 logger.info(`消息定义 ${message.number} 不在触发日期内`, dayjs(message.datetime_start).format('YYYY-MM-DD HH:mm:ss'), triggerDates);
