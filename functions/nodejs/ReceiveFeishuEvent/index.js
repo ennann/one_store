@@ -1,6 +1,5 @@
 const { newLarkClient } = require('../utils');
 
-
 /**
  * @param {Params}  params     自定义参数
  * @param {Context} context    上下文参数，可通过此参数下钻获取上下文变量信息等
@@ -86,26 +85,25 @@ module.exports = async function (params, context, logger) {
                 };
             }
             // 降信息存储到redis中标记  key -> 群号   value -> message_id
-            await baas.redis.setex(response.data.chat_id,24*60*60*30,response.data.message_id);
-            
+            await baas.redis.setex(response.data.chat_id, 24 * 60 * 60 * 30, response.data.message_id);
+
             break;
 
         case 'card.action.trigger':
             // card.action.trigger 消息卡片按钮被点击事件
-            logger.info('本次事件：用户点击消息卡片按钮，入参：',params);
+            logger.info('本次事件：用户点击消息卡片按钮，入参：', params);
             break;
 
         case 'im.message.receive_v1':
-            
             // im.message.receive_v1 消息接收事件，群聊中的 at 或者用户的私聊
             logger.info('本次事件：用户向机器人发送消息事件');
             break;
 
         case 'contact.user.updated_v3':
-
             // contact.user.updated_v3 用户信息更新事件
             logger.info('本次事件：用户信息更新事件');
-            await faas.function("UserInfoChangeEvent").invoke(params);
+            await faas.function('UserInfoChangeEvent').invoke(params);
+            logger.info('用户信息更新事件处理完成');
             break;
 
         default:
@@ -137,7 +135,6 @@ async function generateCardButtonUrl(context, chat_id, group_id) {
         // 线上环境
         BASE_URL = 'https%3A%2F%2Fet6su6w956.feishuapp.cn%2Fae%2Fapps%2Fone_store__c%2Faadgdtfskbqhi';
     }
-
 
     const REDIRECT_URI = `${BASE_URL}%3Fparams_var_RDE3AgWC%3D${chat_id}%26params_var_QrP6EhWe%3D${group_id}`;
     // %3Fparams_var_RDE3AgWC%3Doc_34e76ae070db2034746777a762f86439%26params_var_QrP6EhWe%3D1796560404246715
