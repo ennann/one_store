@@ -10,6 +10,15 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+    const client = await newLarkClient({ userId: context?.user?._id }, logger); // 创建 Lark 客户端
+
+
+
+    const newStore = await application.data.object('object_store').select('_id').where({store_department: '1799628109794473'}).findOne();
+
+logger.info('显示门店返回',newStore);
+return
+
 const oldDepAllStore = await application.data
   .object('object_store_staff')
   .select('_id')
@@ -29,7 +38,7 @@ const oldDepAllStore = await application.data
 // logger.info(filteredCollection)
 
 return 
-  const client = await newLarkClient({ userId: context?.user?._id }, logger); // 创建 Lark 客户端
+
   // 日志功能
   // logger.info(`${new Date()} 函数开始执行`);
 //   const redisValue = await baas.redis.setex("2024-05-22",24*60*60,0);

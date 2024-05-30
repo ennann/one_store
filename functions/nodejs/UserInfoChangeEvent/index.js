@@ -71,13 +71,19 @@ module.exports = async function (params, context, logger) {
       params: { member_id_type: 'open_id' },
       data: { id_list: [open_id] },
     });
-    // 将用户拉入新的门店成员
-    // await application.data.object('object_store_staff').create({
-    //   store_staff: { _id: userRecord._id },
-    //   store_staff_department: { _id: newDepartmentRecord._id },
-    // });
 
   }
+  //   根据组织找到门店，（默认一个组织只有一个门店）
+  const newStore = await application.data.object('object_store').select('_id').where({store_department: newDepartmentRecord._id}).findOne();
+  if (newStore){
+      // 将用户拉入新的门店成员
+      await application.data.object('object_store_staff').create({
+        store_staff: { _id: userRecord._id },
+        store_staff_department: { _id: newDepartmentRecord._id },
+        store: {_id:newStore._id}
+      });
+  }
+
 
   // 将用户从旧的部门群聊中移除（飞书群成员 apaas）
   if (oldDepartmentChatGroup && oldDepartmentList[0] != 0) {
