@@ -39,7 +39,7 @@ module.exports = async function (params, context, logger) {
             .where({ _id: object_task_def._id })
             .findOne();
 
-        let triggerDates = calculateTriggerDates(taskDefine);
+        let triggerDates = calculateTriggerDates(taskDefine, logger);
 
         const newBatchNo = `${size.toString().padStart(6, '0')}`;
         response.batch_no = taskDefine.task_number + '-' + newBatchNo;
@@ -58,7 +58,7 @@ module.exports = async function (params, context, logger) {
  * @param {*} task
  * @returns {Array} 触发日期列表
  */
-const calculateTriggerDates = task => {
+const calculateTriggerDates = (task, logger) => {
     const unitMapping = {
         option_day: 'day',
         option_week: 'week',

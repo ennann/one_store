@@ -10,32 +10,34 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-  const response = {
-    code: 0,
-    batch_no: "",
-    message: "获取成功"
-  }
-  // 在这里补充业务代码
-  const { object_chat_message_def } = params;
-  if (!object_chat_message_def) {
-    response.code = -1;
-    response.message = "缺少必要参数：消息定义数据";
-    return response;
-  }
-  try {
-    const existingTasks = await application.data.object('object_message_send').select('_id', 'batch_no')
-      .where({ 'message_send_def': { _id: object_chat_message_def._id } }).find();
-    let object_chat_message_def_query = await application.data.object('object_chat_message_def')
-      .select('_id', 'number')
-      .where({ _id: object_chat_message_def._id })
-      .findOne();
-    const newBatchNo = + `${(existingTasks.length + 1).toString().padStart(6, '0')}`;
-    response.batch_no = object_chat_message_def_query.number + '-' + newBatchNo;
-    return response;
-  } catch (error) {
-    logger.error(`数据库操作失败: ${error}`);
-    response.code = -1;
-    response.message = '内部服务器错误';
-    return response;
-  }
-}
+    const response = {
+        code: 0,
+        batch_no: '',
+        message: '获取成功',
+    };
+
+    // 在这里补充业务代码
+    const { object_chat_message_def } = params;
+    if (!object_chat_message_def) {
+        response.code = -1;
+        response.message = '缺少必要参数：消息定义数据';
+        return response;
+    }
+    
+    try {
+        const existingTasks = await application.data
+            .object('object_message_send')
+            .select('_id', 'batch_no')
+            .where({ message_send_def: { _id: object_chat_message_def._id } })
+            .find();
+        let object_chat_message_def_query = await application.data.object('object_chat_message_def').select('_id', 'number').where({ _id: object_chat_message_def._id }).findOne();
+        const newBatchNo = +`${(existingTasks.length + 1).toString().padStart(6, '0')}`;
+        response.batch_no = object_chat_message_def_query.number + '-' + newBatchNo;
+        return response;
+    } catch (error) {
+        logger.error(`数据库操作失败: ${error}`);
+        response.code = -1;
+        response.message = '内部服务器错误';
+        return response;
+    }
+};

@@ -52,10 +52,11 @@ module.exports = async function (params, context, logger) {
     let oldDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _lark_department_id: oldDepartmentOpenId }).findOne();
     let newDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _lark_department_id: newDepartmentOpenId }).findOne();
 
+
     // 如果 aPaaS 中不存在新的部门记录
-    if (!newDepartmentRecord) {
-        logger.error('新部门信息不存在');
-        return { code: -1, message: '新部门信息在 aPaaS 不存在' };
+    if (!oldDepartmentRecord || !newDepartmentRecord) {
+        logger.error('未能在 aPaaS 中找到旧部门信息或新部门记录');
+        return { code: -1, message: '未能在 aPaaS 中找到旧部门信息或新部门记录' + JSON.stringify(oldDepartmentRecord) + JSON.stringify(newDepartmentRecord)};
     }
 
     // 1. 开始处理新部门信息
