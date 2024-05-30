@@ -213,6 +213,12 @@ module.exports = async function (params, context, logger) {
     }
 };
 
+/**
+ * @description 
+ * @param {*} object_store_task 
+ * @param {*} logger 
+ * @returns 
+ */
 async function createStoreTaskEntryStart(object_store_task, logger) {
     try {
         //判断是否发送成功者，发送成功者不再发送

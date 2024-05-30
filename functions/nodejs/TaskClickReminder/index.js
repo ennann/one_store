@@ -16,6 +16,10 @@ module.exports = async function (params, context, logger) {
 
     const { object_task_create_monitor } = params;
 
+    // 从环境变量中获取租户域名和命名空间
+    const domain = await application.globalVar.getVar('tenantDomain');
+    const namespace = await application.globalVar.getVar('namespace');
+
     if (!object_task_create_monitor) {
         logger.error('未传入任务处理记录');
         return { code: false, message: '未传入任务处理记录' };
@@ -59,7 +63,7 @@ module.exports = async function (params, context, logger) {
                 option_api: item.option_priority,
             });
             //判断执行流程的url
-            const url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=' + item._id;
+            const url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=${item._id}`;
             const pc_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=' + item._id;
             const android_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=' + item._id;
             const ios_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=' + item._id;

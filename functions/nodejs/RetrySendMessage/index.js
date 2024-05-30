@@ -151,7 +151,7 @@ module.exports = async function (params, context, logger) {
 
             // 限流器
             const limitSendMessage = createLimiter(sendMessage);
-            const res = await Promise.all(records.map(item => limitSendMessage({ ...item, ...msgInfo })));
+            const res = await Promise.all(records.map(item => limitSendMessage({ ...item, ...msgInfo, client })));
             const sendMessageResult = res.flat();
             const successRecords = sendMessageResult.filter(i => i.code === 0);
             const failRecords = sendMessageResult.filter(i => i.code !== 0);

@@ -71,7 +71,6 @@ module.exports = async function (params, context, logger) {
     }
 
     // 发送消息，从 messageContent 解构出卡片内容，接收方类型
-
     const sendMessage = async (receive_id, client) => {
         try {
             const res = await faas.function('MessageCardSend').invoke({ ...messageContent, receive_id, client });

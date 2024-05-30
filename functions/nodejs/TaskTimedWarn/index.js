@@ -12,6 +12,11 @@ module.exports = async function (params, context, logger) {
     const currentTime = dayjs().valueOf(); // 当前时间时间戳
     logger.info(`当前时间戳: ${currentTime}`);
 
+    // 从环境变量中获取租户域名和命名空间
+    const domain = await application.globalVar.getVar("tenantDomain");
+    const namespace = await application.globalVar.getVar("namespace");
+    
+
     // 查询符合条件的门店普通任务
     const taskQuery = {
         task_status: application.operator.in('option_pending', 'option_transferred', 'option_rollback'),
