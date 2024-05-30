@@ -99,7 +99,7 @@ module.exports = async function (params, context, logger) {
     // 创建飞书SDK客户端
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
-    const sendMessage = async ({ _id, option_send_channel, message_chat, accept_user, content, msg_type }) => {
+    const sendMessage = async ({ _id, option_send_channel, message_chat, accept_user, content, msg_type, client }) => {
         const receive_id_type = option_send_channel === 'option_group' ? 'chat_id' : 'user_id';
         const msgInfo = { content, msg_type, receive_id_type };
         let ids = [];

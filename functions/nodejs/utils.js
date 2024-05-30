@@ -381,6 +381,12 @@ async function fetchUserMobilePhoneById(user_id) {
     return response.data.user.mobile;
 }
 
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+
 module.exports = {
     createLarkClient,
     newLarkClient,
@@ -396,4 +402,5 @@ module.exports = {
     fetchDepartmentInfoById,
     chunkArray,
     fetchUserMobilePhoneById,
+    sleep
 };

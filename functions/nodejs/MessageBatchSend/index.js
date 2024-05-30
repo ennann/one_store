@@ -11,10 +11,13 @@ module.exports = async function (params, context, logger) {
     if (redisValue) {
         logger.error('已存在执行中发送消息任务');
         return { code: -1, message: '已存在执行中发送消息任务' };
-        // throw new Error('已存在执行中发送消息任务');
     }
 
     let sendIds = [];
+
+    // 创建飞书SDK客户端
+    const client = await newLarkClient({ userId: context.user._id }, logger);
+    logger.info('飞书SDK客户端创建成功', client);
 
     // 创建消息发送批次记录
     const createSendRecord = async () => {
@@ -69,15 +72,9 @@ module.exports = async function (params, context, logger) {
 
     // 发送消息，从 messageContent 解构出卡片内容，接收方类型
 
-    // 创建飞书SDK客户端
-    const client = await newLarkClient({ userId: context.user._id }, logger);
-
-    const sendMessage = async receive_id => {
-        const paramsData = { ...messageContent, receive_id };
-
-        // logger.info({ paramsData });
+    const sendMessage = async (receive_id, client) => {
         try {
-            const res = await faas.function('MessageCardSend').invoke({ ...paramsData, client });
+            const res = await faas.function('MessageCardSend').invoke({ ...messageContent, receive_id, client });
             return { ...res, receive_id };
         } catch (error) {
             logger.error(`发送消息失败 - `, paramsData, error);
@@ -124,7 +121,8 @@ module.exports = async function (params, context, logger) {
 
             const limitSendMessage = createLimiter(sendMessage, { perSecond: 30, perMinute: 500 });
             logger.info({ sendIds });
-            const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id)));
+
+            const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id, client)));
 
             const successRecords = sendMessageResult.filter(result => result?.code === 0);
             const failRecords = sendMessageResult.filter(result => result?.code !== 0);
@@ -175,7 +173,6 @@ module.exports = async function (params, context, logger) {
     } catch (error) {
         logger.error('批量发送消息失败', error);
         return { code: -1, message: error.message };
-        // throw error;
     } finally {
         await baas.redis.del(KEY);
     }

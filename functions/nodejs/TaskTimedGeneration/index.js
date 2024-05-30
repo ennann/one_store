@@ -18,7 +18,10 @@ module.exports = async function (params, context, logger) {
         return { code: -1, message: '未传入有效的任务定义记录' };
     }
 
+
     const client = await newLarkClient({ userId: context.user._id }, logger);
+    logger.info('Lark 客户端初始化完成', client);
+
 
     // 1. 第一步根据任务定义列表创建任务处理记录（任务批次）
     // 为任务定义实例记录生成任务批次号并创建任务处理记录（任务批次）
@@ -30,7 +33,7 @@ module.exports = async function (params, context, logger) {
     }
 
     //创建限流器
-    const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
+    const limitedSendFeishuMessage = createLimiter(sendFeishuMessage, {perSecond: 30, perMinute: 600});
 
     //2.  第二步根据任务定义，创建抄送人aPaaS数据，给抄送人发送飞书消息
     if (task_def_record.carbon_copy) {
@@ -62,7 +65,7 @@ module.exports = async function (params, context, logger) {
     await baas.redis.del(taskBatchNumberCreateResult?.task_id);
 
     // 调用创建门店普通任务函数
-    const storeTaskCreateResults = await batchCreateThirdLevelStoreTask(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage);
+    const storeTaskCreateResults = await batchCreateThirdLevelStoreTask(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage, client);
 
     return {
         code: storeTaskCreateResults.code,
@@ -153,8 +156,9 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
  * @param {*} limitedSendFeishuMessage
  * @returns
  */
-async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, limitedSendFeishuMessage) {
+async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, limitedSendFeishuMessage, client) {
     const createDataList = [];
+
     try {
         // 因为之前获取部门名称（任务来源）一直有问题，这里增加功能，单独去找部门名称
         let sourceDepartmentName = '';
@@ -277,7 +281,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
 
             const messageCardSendDataList = successfulStoreTasks.map(item => item.messageCardSendData).filter(data => data && Object.keys(data).length > 0);
 
-            const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData)));
+            const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData, client)));
 
             const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
             const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);

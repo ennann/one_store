@@ -1,4 +1,5 @@
 // todo: 确认函数修改后的影响范围
+const { createLarkClient, sleep } = require('../utils');
 
 /**
  * @param {Params}  params     自定义参数
@@ -8,7 +9,11 @@
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    const { receive_id_type, receive_id, msg_type, content, client } = params;
+    // logger.info(`发送消息函数开始执行`, params);
+
+    await sleep(50);
+    
+    let { receive_id_type, receive_id, msg_type, content, client } = params;
     const receiveIdTypes = new Set(['open_id', 'user_id', 'email', 'union_id', 'chat_id']);
 
     // 判断 receive_id_type 是否合法
@@ -51,6 +56,7 @@ module.exports = async function (params, context, logger) {
         logger.error('消息发送', e);
         return { code: -1, message: '消息发送失败，原因：' + e.message };
     }
+
 };
 
 /* 正常返回内容如下

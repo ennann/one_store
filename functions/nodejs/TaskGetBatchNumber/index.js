@@ -25,12 +25,12 @@ module.exports = async function (params, context, logger) {
 
     try {
         // 消息批次总数
-        const taskBatchTotal = await application.data
+        const currentTaskBatchTotal = await application.data
             .object('object_task_create_monitor')
             .select('_id', 'batch_no')
             .where({ task_def: { _id: object_task_def._id } })
             .count();
-        const size = taskBatchTotal + 1;
+        const currentTaskBatch = currentTaskBatchTotal + 1;
 
         // 消息定义数据
         let taskDefine = await application.data
@@ -39,11 +39,20 @@ module.exports = async function (params, context, logger) {
             .where({ _id: object_task_def._id })
             .findOne();
 
-        let triggerDates = calculateTriggerDates(taskDefine, logger);
+        let taskTotalBatch;
+        if (object_task_def.option_method === 'option_cycle') {
+            taskTotalBatch = calculateTriggerDates(taskDefine, logger).length;
+        } else if (object_task_def.option_method === 'option_once') {
+            taskTotalBatch = 1;
+        } else {
+            logger.error(`未知的任务触发方式: ${taskDefine.option_method}`);
+            response.code = -1;
+            response.message = '未知的任务触发方式';
+        }
 
-        const newBatchNo = `${size.toString().padStart(6, '0')}`;
+        const newBatchNo = `${currentTaskBatch.toString().padStart(6, '0')}`;
         response.batch_no = taskDefine.task_number + '-' + newBatchNo;
-        response.batch_progress = size + '/' + triggerDates.length;
+        response.batch_progress = currentTaskBatch + '/' + taskTotalBatch;
     } catch (error) {
         logger.error(`数据库操作失败: ${error}`);
         response.code = -1;

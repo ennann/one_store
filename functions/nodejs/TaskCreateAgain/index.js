@@ -149,7 +149,7 @@ module.exports = async function (params, context, logger) {
         //创建限流器
         const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
         //发送飞书卡片消息
-        const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData)));
+        const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData, client)));
 
         const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
         const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
