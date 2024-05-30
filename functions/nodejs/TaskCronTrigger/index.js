@@ -17,7 +17,7 @@ module.exports = async function (params, context, logger) {
 
     // 根据当前时间和缓冲时间计算触发时间范围
     const triggerRangeStart = currentTime - timeBuffer;
-    const triggerRangeEnd = triggerRangeStart + timeBuffer;
+    const triggerRangeEnd = currentTime + timeBuffer;
 
     logger.info(`当前时间: ${currentTime}, ${dayjs(currentTime).format('YYYY-MM-DD HH:mm:ss')}, 当前日期: ${currentDate}`);
     logger.info(`减去后的时间: ${currentTime - timeBuffer}, ${dayjs(currentTime - timeBuffer).format('YYYY-MM-DD HH:mm:ss')}`);
