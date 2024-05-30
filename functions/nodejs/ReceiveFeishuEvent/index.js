@@ -8,10 +8,8 @@ const { newLarkClient } = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    // 日志功能
-    // logger.info(`${new Date()} 函数开始执行`);
+    logger.info(`接收飞书事件函数开始执行 ${new Date()}`);
 
-    // 在这里补充业务代码
     logger.info(params);
     const event_type = params?.event?.header?.event_type;
 
@@ -19,7 +17,7 @@ module.exports = async function (params, context, logger) {
     if (!event_type) {
         logger.error('本次事件中，没有 event_type 字段，请检查');
         return {
-            code: 400,
+            code: -1,
             msg: '本次事件中，没有事件类型字段，请检查参数是否正确',
         };
     }
@@ -98,11 +96,23 @@ module.exports = async function (params, context, logger) {
             // im.message.receive_v1 消息接收事件，群聊中的 at 或者用户的私聊
             logger.info('本次事件：用户向机器人发送消息事件');
             break;
+        
+        case 'contact.user.created_v3':
+            // contact.user.created_v3 用户信息创建事件
+            logger.info('本次事件：用户信息创建事件');
+            await faas.function('EventUserCreate').invoke(params);
+            break;
+        
+        case 'contact.user.deleted_v3':
+            // contact.user.deleted_v3 用户信息删除事件
+            logger.info('本次事件：用户信息删除事件');
+            await faas.function('EventUserDelete').invoke(params);
+            break;
 
         case 'contact.user.updated_v3':
             // contact.user.updated_v3 用户信息更新事件
             logger.info('本次事件：用户信息更新事件');
-            await faas.function('UserInfoChangeEvent').invoke(params);
+            await faas.function('EventUserInfoChange').invoke(params);
             logger.info('用户信息更新事件处理完成');
             break;
 

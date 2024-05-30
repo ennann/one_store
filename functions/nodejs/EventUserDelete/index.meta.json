@@ -1,0 +1,16 @@
+{
+  "apiID": "one_store__c__function_aadglbbhlnoag",
+  "apiName": "EventUserDelete",
+  "label": {
+    "zh_CN": "Event User Delete",
+    "en_US": "Event User Delete"
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [],
+  "output": []
+}

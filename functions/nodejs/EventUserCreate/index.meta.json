@@ -1,0 +1,16 @@
+{
+  "apiID": "one_store__c__function_aadglbbdedoes",
+  "apiName": "EventUserCreate",
+  "label": {
+    "zh_CN": "用户入职事件",
+    "en_US": "User Entry Event"
+  },
+  "description": {
+    "zh_CN": "来自飞书开放平台的用户入职事件",
+    "en_US": "User entry event from Feishu Open Platform"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [],
+  "output": []
+}
