@@ -20,7 +20,6 @@ module.exports = async function (params, context, logger) {
 
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
-
     // 1. 第一步根据任务定义列表创建任务处理记录（任务批次）
     // 为任务定义实例记录生成任务批次号并创建任务处理记录（任务批次）
     const taskBatchNumberCreateResult = await createSecondLevelTaskBatch(task_def_record, logger);
@@ -41,13 +40,13 @@ module.exports = async function (params, context, logger) {
 
         if (userList.length > 0) {
             const res = await getTaskDefCopyAndFeishuMessageStructure(userList, task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger);
-            
+
             const cardDataList = res.cardDataList;
             const sendFeishuMessageResults = await Promise.all(cardDataList.map(item => limitedSendFeishuMessage(item, client)));
             const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
             const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
             logger.info(`抄送人飞书消息发送结果，总数${sendFeishuMessageResults.length}，成功${sendFeishuMessageSuccess.length}，失败${sendFeishuMessageFail.length}`);
-            
+
             const aPaaSDataList = res.aPaaSDataList;
             const createAPaaSDataResults = await Promise.all(aPaaSDataList.map(item => createAPaaSData(item)));
             const createAPaaSDataSuccess = createAPaaSDataResults.filter(result => result.code === 0);
@@ -93,6 +92,7 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
             };
         }
 
+        // 判断任务当天是否已经发送，
         const res = await application.data
             .object('object_task_create_monitor')
             .select('_id')
@@ -103,10 +103,10 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
             .findOne();
 
         if (res) {
-            logger.warn(`任务定义[${taskDefine._id}]的任务处理记录（任务批次）已存在...`);
+            logger.warn(`任务定义[${taskDefine._id}]的任务处理记录（任务批次）当天已存在...`);
             return {
                 code: -1,
-                message: `任务定义[${taskDefine._id}]的任务处理记录（任务批次）已存在...`,
+                message: `任务定义[${taskDefine._id}]的任务处理记录（任务批次）当天已存在...`,
                 task_id: taskDefine._id,
             };
         }
@@ -480,8 +480,12 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
             content: '',
         };
 
-        const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${taskBatch._id || taskBatch.id}`;
-        const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${taskBatch._id || taskBatch.id}`;
+        const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
+            taskBatch._id || taskBatch.id
+        }`;
+        const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
+            taskBatch._id || taskBatch.id
+        }`;
 
         const url = default_url;
         const pc_url = default_url;

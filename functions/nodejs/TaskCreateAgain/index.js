@@ -100,7 +100,7 @@ module.exports = async function (params, context, logger) {
     }
   } else if (object_task_def.option_handler_type === "option_02") {
     //人员塞选规则
-    const userList = await faas.function('DeployMemberRange').invoke({ user_rule: object_task_def.user_rule });
+    const userList = await faas.function('DeployMemberRange').invoke({ user_rule: object_task_def.user_rule, publisher: object_task_def.task_publisher });
     for (const userListElement of userList) {
       const createData = {
         name: object_task_def.name,

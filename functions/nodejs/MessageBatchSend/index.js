@@ -108,7 +108,7 @@ module.exports = async function (params, context, logger) {
                 logger.error('缺少人员筛选规则');
                 return { code: -1, message: '缺少人员筛选规则' };
             }
-            const userList = await faas.function('DeployMemberRange').invoke({ user_rule: record.user_rule });
+            const userList = await faas.function('DeployMemberRange').invoke({ user_rule: record.user_rule, publisher: record.publisher });
             sendIds = userList.map(i => i.user_id);
             logger.info(`筛选到的人员数量: ${sendIds.length}，人员ID列表`, sendIds);
         }
