@@ -40,7 +40,7 @@ module.exports = async function (params, context, logger) {
     let oldDepartmentOpenId = oldDepartmentList[0];
     let newDepartmentOpenId = newDepartmentList[0];
 
-    if (oldDepartmentOpenId || newDepartmentOpenId) {
+    if (!oldDepartmentOpenId || !newDepartmentOpenId) {
         // // 获取部门信息
         // const oldDepartmentInfo = await fetchDepartmentInfoById(oldDepartmentOpenId, client);
         // const newDepartmentInfo = await fetchDepartmentInfoById(newDepartmentOpenId, client);
