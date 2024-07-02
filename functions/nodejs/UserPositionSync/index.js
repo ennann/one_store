@@ -9,26 +9,26 @@ const { newLarkClient, batchOperation } = require('../utils');
  */
 module.exports = async function (params, context, logger) {
     try {
-        logInfo(logger, `汇总用户职务函数开始执行 ${new Date()}`);
+        logger(`汇总用户职务函数开始执行 ${new Date()}`);
 
         const client = await newLarkClient({ userId: context.user._id }, logger);
 
         const feishuJobRecords = await getFeishuJobRecords(client);
-        logInfo(logger, `Feishu 职务数据：${JSON.stringify(feishuJobRecords)}`);
+        logger(`Feishu 职务数据：${JSON.stringify(feishuJobRecords)}`);
 
         if (!feishuJobRecords.length) {
-            logInfo(logger, 'Feishu 职务数据为空');
+            logger('Feishu 职务数据为空');
             return;
         }
 
         const apaasJobRecords = await getApaasJobRecords();
-        logInfo(logger, `aPaaS 职务数据：${JSON.stringify(apaasJobRecords)}`);
+        logger(`aPaaS 职务数据：${JSON.stringify(apaasJobRecords)}`);
 
         const { updateRecords, createRecords, deleteRecords } = syncJobRecords(feishuJobRecords, apaasJobRecords);
 
-        logInfo(logger, `批量更新的职务数据：${JSON.stringify(updateRecords)}`);
-        logInfo(logger, `批量创建的职务数据：${JSON.stringify(createRecords)}`);
-        logInfo(logger, `批量删除的职务数据：${JSON.stringify(deleteRecords)}`);
+        logger(`批量更新的职务数据：${JSON.stringify(updateRecords)}`);
+        logger(`批量创建的职务数据：${JSON.stringify(createRecords)}`);
+        logger(`批量删除的职务数据：${JSON.stringify(deleteRecords)}`);
 
         await batchOperation(logger, 'object_job_position', 'batchUpdate', updateRecords);
         await batchOperation(logger, 'object_job_position', 'batchCreate', createRecords);
