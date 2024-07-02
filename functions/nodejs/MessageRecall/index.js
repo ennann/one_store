@@ -20,8 +20,11 @@ module.exports = async function (params, context, logger) {
   const { batch_record } = params;
 
   const DB = application.data.object;
+  // 消息发送批次
   const BATCH_OBJECT = "object_message_send";
+  // 消息发送记录
   const RECORD_OBJECT = "object_message_record";
+  // 消息阅读记录
   const READ_OBJECT = "object_message_read_record";
   const client = await newLarkClient({ userId: context.user._id }, logger);
 
@@ -96,13 +99,16 @@ module.exports = async function (params, context, logger) {
   try {
     const batchData = await getBatchData();
     if (batchData.option_status === "option_recall") {
-      return;
+        logger.warn("消息撤回失败，消息发送状态为撤回完成")
+        return { code: -1 ,message: "消息撤回失败，消息发送状态为撤回完成"};
     }
     if (!["option_all_success", "option_part_success"].includes(batchData.option_status)) {
-      return;
+        logger.warn("消息撤回失败，消息发送状态为未发送完成")
+        return { code: -1 ,message: "消息撤回失败，消息发送状态为未发送完成"};
     }
     if (!isWithinHours(batchData.send_end_datetime)) {
-      return;
+        logger.warn("消息撤回失败，消息发送时间已超过24小时")
+        return { code: -1 ,message: "消息撤回失败，消息发送时间已超过24小时"};
     }
 
     const { msgRecords, successRecords } = await getMessageRecords();
@@ -121,7 +127,9 @@ module.exports = async function (params, context, logger) {
       });
     }
   } catch (error) {
-    throw new Error("批次消息撤回失败", error);
+      logger.info("批次消息撤回失败", error)
+      return { code: -1 ,messages: error};
+    // throw new Error("批次消息撤回失败", error);
   }
 }
 

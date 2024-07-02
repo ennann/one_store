@@ -59,6 +59,7 @@ module.exports = async function (params, context, logger) {
                 allMemberIds,
             };
         } catch (error) {
+            // todo 怀疑是否是产生问题的原因
             logger.error(`获取飞书群 ${data.chat_id} 信息失败`, error);
         }
     };
@@ -74,6 +75,7 @@ module.exports = async function (params, context, logger) {
             };
         } catch (error) {
             logger.error(`获取人员 ${_lark_user_id} 信息失败`, error);
+            // todo 同上
             return { unread_count: 0 };
         }
     };
@@ -85,8 +87,8 @@ module.exports = async function (params, context, logger) {
                 message_send: { _id: message_define._id },
                 message_batch: { _id: message_send_batch._id },
                 option_send_channel: message_define.send_channel,
-                message_id: record.data.message_id,
-                read_status: 'option_unread',
+                message_id: record.code === 0 ? record.data.message_id : '',
+                read_status: record.code === 0 ? 'option_unread' : '',
                 read_count: 0,
                 result: record.code === 0 ? 'option_success' : 'option_failed',
             };

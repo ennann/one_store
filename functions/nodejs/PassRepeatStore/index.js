@@ -18,10 +18,15 @@ module.exports = async function (params, context, logger) {
     const alreadyGroupUserList = params.group2;
 
     const chatId = params.groupId;
+    // 获取飞书群信息（群主以及群管理员）
     const groupRes = await application.data.object('object_feishu_chat').select('chat_owner', 'chat_managers').where({ chat_id: chatId }).findOne();
+    // 获取飞书群成员列表
+    const groupMemberRes = await application.data.object('object_chat_member').select('chat_member').where({ store_chat: {_id: chatId} }).find();
 
+    // 获取当前飞书群的成员信息
     let filteredData = groupRes.chat_managers.map(manager => manager.id);
     filteredData.push(groupRes.chat_owner?._id);
+    groupMemberRes.forEach(member => filteredData.push(member.chat_member._id))
 
     // 获取已存在的群成员的id列表
     let alreadyGroupUserIds = alreadyGroupUserList.map(user => user.chat_member._id);

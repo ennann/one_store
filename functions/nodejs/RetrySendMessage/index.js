@@ -9,7 +9,8 @@ const { createLimiter, newLarkClient } = require('../utils');
  */
 module.exports = async function (params, context, logger) {
     if (!params.record) {
-        throw new Error('请传入消息发送批次');
+        logger.error('请传入消息发送批次');
+        return {code: -1, message: '请传入消息发送批次'};
     }
 
     const { record } = params;
@@ -28,6 +29,7 @@ module.exports = async function (params, context, logger) {
                 .find();
             return userRecords.map(i => i._lark_user_id);
         } catch (error) {
+            logger.error('获取用户信息失败', error);
             throw new Error('获取用户信息失败', error);
         }
     };
@@ -70,6 +72,7 @@ module.exports = async function (params, context, logger) {
     // 获取批次数据
     const getBatchData = async () => {
         try {
+             // todo  这里可能存在问题，比如第一批次的数据没问题，第二批次的数据有问题，获取到的批次数据就是错误的
             const data = await DB(BATCH_OBJECT).where({ _id: record._id }).select('_id', 'message_content', 'msg_type', 'success_count').findOne();
             return data;
         } catch (error) {
@@ -111,6 +114,7 @@ module.exports = async function (params, context, logger) {
             const { chat_ids, allMemberIds: user_ids } = await getChatInfo(message_chat);
             ids = chat_ids;
             chatUsers = user_ids;
+            // 异步创建初始消息阅读记录
             const task = await baas.tasks.createAsyncTask('MessageReadRecordCreate', {
                 user_ids,
                 message_send_record: { _id },
@@ -157,6 +161,7 @@ module.exports = async function (params, context, logger) {
             const failRecords = sendMessageResult.filter(i => i.code !== 0);
 
             let updateData = {};
+            // 判断发送结果是否都为成功
             if (sendMessageResult.every(i => i.code === 0)) {
                 // 重试全部成功
                 updateData = {
@@ -191,6 +196,7 @@ module.exports = async function (params, context, logger) {
             );
             await Promise.all(updateRecordData);
         } else {
+            logger.error('批次中失败的消息发送记录为空');
             throw new Error('批次中失败的消息发送记录为空');
         }
     } catch (error) {

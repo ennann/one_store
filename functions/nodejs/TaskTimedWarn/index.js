@@ -101,7 +101,10 @@ async function generateMessageCardSendData(tasks, logger) {
             option_api: task.option_priority,
         });
 
-        const url = generateTaskUrl(task._id);
+        const namespace = await application.globalVar.getVar("namespace");
+        const tenantDomain = await application.globalVar.getVar("tenantDomain");
+
+        const url = generateTaskUrl(task._id,namespace,tenantDomain);
         const content = generateMessageContent(task, priority.option_name, url);
 
         const data = {
@@ -151,12 +154,13 @@ async function generateMessageCardSendData(tasks, logger) {
  * @param {String} taskId 任务ID
  * @returns {Object} URL对象
  */
-function generateTaskUrl(taskId) {
+function generateTaskUrl(taskId,namespace,tenantDomain) {
+
     return {
-        url: `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=${taskId}`,
-        pc_url: `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=${taskId}`,
-        android_url: `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=${taskId}`,
-        ios_url: `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=${taskId}`,
+        url: `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=${taskId}`,
+        pc_url: `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=${taskId}`,
+        android_url: `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgihlti4uni?params_var_LLsDqf8w=${taskId}`,
+        ios_url: `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgihlti4uni?params_var_LLsDqf8w=${taskId}`,
     };
 }
 

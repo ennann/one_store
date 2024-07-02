@@ -1,4 +1,3 @@
-// todo: 确认函数修改后的影响范围
 const { createLarkClient, sleep } = require('../utils');
 
 /**

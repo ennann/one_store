@@ -1,0 +1,51 @@
+{
+  "apiID": "one_store__c__function_aadgpj2bxgwfg",
+  "apiName": "GetLarkDepMemberList",
+  "label": {
+    "zh_CN": "获取飞书部门成员列表",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [
+    {
+      "key": "dep",
+      "type": "Record",
+      "label": "组织",
+      "required": false,
+      "description": "部门信息",
+      "objectApiName": "_department"
+    }
+  ],
+  "output": [
+    {
+      "key": "depMemberList",
+      "type": "RecordList",
+      "label": "部门成员列表",
+      "description": "",
+      "objectApiName": "_user",
+      "fieldApiNames": [
+        "_id",
+        "_name",
+        "_avatar",
+        "_email",
+        "_phoneNumber",
+        "_enableAccountPassword",
+        "_active",
+        "_accountStatus",
+        "_lark_user_id",
+        "_type",
+        "_department",
+        "_manager",
+        "_createdBy",
+        "_createdAt",
+        "_updatedBy",
+        "_updatedAt"
+      ]
+    }
+  ]
+}

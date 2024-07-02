@@ -41,8 +41,9 @@ module.exports = async function (params, context, logger) {
                     option_status: 'option_enable',
                     option_method: 'option_once',
                     boolean_public_now: false,
-                    datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的任务
-                    datetime_publish: _.gte(currentTime),
+                    datetime_publish: _.and(_.lte(currentTime + timeBuffer),_.gte(currentTime)),
+                    // datetime_publish: _.lte(currentTime + timeBuffer), // 5分钟内的任务
+                    // datetime_publish: _.gte(currentTime),
                 }), // 一次性任务的条件
             ),
         )

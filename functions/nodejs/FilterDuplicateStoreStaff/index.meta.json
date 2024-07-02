@@ -1,0 +1,77 @@
+{
+  "apiID": "one_store__c__function_aadgod6pc6wfa",
+  "apiName": "FilterDuplicateStoreStaff",
+  "label": {
+    "zh_CN": "过滤重复的门店成员",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [
+    {
+      "key": "newStoreStaff",
+      "type": "RecordList",
+      "label": "新加入的门店成员",
+      "required": false,
+      "description": "",
+      "objectApiName": "object_store_staff",
+      "fieldApiNames": [
+        "_name",
+        "store",
+        "store_staff",
+        "store_staff_department",
+        "store_staff_email",
+        "_id",
+        "_createdBy",
+        "_createdAt",
+        "_updatedBy",
+        "_updatedAt"
+      ]
+    },
+    {
+      "key": "alreadyStoreStaff",
+      "type": "RecordList",
+      "label": "已存在的门店成员",
+      "required": false,
+      "description": "",
+      "objectApiName": "object_store_staff",
+      "fieldApiNames": [
+        "_name",
+        "store",
+        "store_staff",
+        "store_staff_department",
+        "store_staff_email",
+        "_id",
+        "_createdBy",
+        "_createdAt",
+        "_updatedBy",
+        "_updatedAt"
+      ]
+    }
+  ],
+  "output": [
+    {
+      "key": "canAddStoreStaff",
+      "type": "RecordList",
+      "label": "可添加的门店成员",
+      "description": "",
+      "objectApiName": "object_store_staff",
+      "fieldApiNames": [
+        "_name",
+        "store",
+        "store_staff",
+        "store_staff_department",
+        "store_staff_email",
+        "_id",
+        "_createdBy",
+        "_createdAt",
+        "_updatedBy",
+        "_updatedAt"
+      ]
+    }
+  ]
+}

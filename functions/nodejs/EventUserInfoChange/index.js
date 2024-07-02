@@ -17,7 +17,7 @@ module.exports = async function (params, context, logger) {
 
     logger.info(`用户 ${name} (${email}) 的部门信息从 ${oldDepartmentList} 变更为 ${newDepartmentList}`);
 
-    if (oldDepartmentList[0] === newDepartmentList[0]) {
+    if (oldDepartmentList && oldDepartmentList[0] === newDepartmentList[0]) {
         return { code: -1, message: '用户第一个部门信息未发生变化（由于飞书可以配置多个部门，但是 aPaaS 只能配置一个部门，所以只取第一个部门）' };
     }
 
@@ -30,11 +30,18 @@ module.exports = async function (params, context, logger) {
 
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
-    const oldDepartmentInfo = await fetchDepartmentInfoById(client, oldDepartmentList[0]);
+    let oldDepartmentInfo;
+     // 判断老部门的id是否传入
+    if (oldDepartmentList){
+        oldDepartmentInfo = await fetchDepartmentInfoById(client, oldDepartmentList[0]);
+    }
     const newDepartmentInfo = await fetchDepartmentInfoById(client, newDepartmentList[0]);
 
     // 从 aPaaS 中查找新旧部门信息
-    const oldDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _name: oldDepartmentInfo.name }).findOne();
+    let oldDepartmentRecord;
+    if (oldDepartmentInfo){
+        oldDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _name: oldDepartmentInfo.name }).findOne();
+    }
     const newDepartmentRecord = await application.data.object('_department').select('_id', '_name').where({ _name: newDepartmentInfo.name }).findOne();
 
     // 1. 处理旧部门信息
@@ -49,12 +56,19 @@ module.exports = async function (params, context, logger) {
 
         if (oldDepartmentChatGroup) {
             logger.info('旧部门的群聊信息', oldDepartmentChatGroup);
+            const oldDepStore = await application.data
+                .object('object_store')
+                .select('_id')
+                .where({ store_department: oldDepartmentRecord._id })
+                .findOne();
 
             const oldDepAllStoreStaff = await application.data
                 .object('object_store_staff')
                 .select('_id')
-                .where({ store_staff: userRecord._id, store_staff_department: oldDepartmentRecord._id })
-                .find();
+                .where({
+                    store_staff: userRecord._id,
+                    store: oldDepStore._id
+                }).find();
 
             const idArray = oldDepAllStoreStaff.map(item => item._id);
 
@@ -64,12 +78,17 @@ module.exports = async function (params, context, logger) {
             } else {
                 logger.warn('未找到该员工在该部门下的门店成员信息, 无需删除');
             }
+            logger.info('飞书群id',oldDepartmentChatGroup._id,'群成员id' ,userRecord._id)
 
             const chatMemberRecord = await application.data
                 .object('object_chat_member')
                 .select('_id')
-                .where({ store_chat: oldDepartmentChatGroup._id, chat_member: userRecord._id })
-                .findOne();
+                .where({
+                    store_chat: {_id:oldDepartmentChatGroup._id},
+                    chat_member: {_id:userRecord._id}
+                }).findOne();
+
+            logger.info('获取到的飞书群成员信息', chatMemberRecord);
 
             if (chatMemberRecord) {
                 await application.data.object('object_chat_member').delete(chatMemberRecord._id);

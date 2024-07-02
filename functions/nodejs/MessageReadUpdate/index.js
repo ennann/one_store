@@ -1,7 +1,8 @@
 // 通过 NPM dependencies 成功安装 NPM 包后此处可引入使用
 // 如安装 linq 包后就可以引入并使用这个包
 // const linq = require("linq");
-const { newLarkClient, createLimiter } = require('../utils');
+const { newLarkClient, createLimiter, sleep } = require('../utils');
+const dayjs = require("dayjs");
 
 /**
  * @param {Params}  params     自定义参数
@@ -13,10 +14,11 @@ const { newLarkClient, createLimiter } = require('../utils');
 module.exports = async function (params, context, logger) {
     const DB = application.data.object;
     const OP = application.operator;
-    const BATCH_OBJECT = 'object_message_send';
-    const RECORD_OBJECT = 'object_message_record';
-    const READ_OBJECT = 'object_message_read_record';
+    const BATCH_OBJECT = 'object_message_send'; //消息发送批次
+    const RECORD_OBJECT = 'object_message_record'; //消息发送记录
+    const READ_OBJECT = 'object_message_read_record'; //消息阅读记录
     const client = await newLarkClient({ userId: context.user._id }, logger);
+    const timestamp = dayjs().subtract(6, 'day').startOf('day').valueOf();//获取6天前的时间戳
 
     // 获取飞书群成员
     const getChatMembers = async _id => {
@@ -36,7 +38,7 @@ module.exports = async function (params, context, logger) {
         const chat_record = await DB('object_feishu_chat').where({ _id: chat._id }).select('_id', 'chat_owner', 'chat_managers', 'chat_id').findOne();
         const chatMemberIds = await getChatMembers(chat_record._id);
         const allMemberIds = Array.from(
-            new Set([...(chat_record.chat_managers.length > 0 ? chat_record.chat_managers.map(i => i._id) : []), ...chatMemberIds, chat_record.chat_owner._id]),
+            new Set([...(chat_record.chat_managers.length > 0 ? chat_record.chat_managers.map(i => i?._id) : []), ...chatMemberIds, chat_record.chat_owner?._id]),
         );
         return allMemberIds;
     };
@@ -44,6 +46,8 @@ module.exports = async function (params, context, logger) {
     // 获取消息已读人员
     const getReadUsers = async (message_id, page_token = '') => {
         const users = [];
+        await sleep(60);
+        logger.info('查询消息已读信息接口', message_id);
         try {
             const res = await client.im.message.readUsers({
                 path: { message_id },
@@ -58,6 +62,7 @@ module.exports = async function (params, context, logger) {
             }
             users.push(...res.data.items);
             if (res.data.has_more) {
+                await sleep(20);
                 const moreUsers = await getReadUsers(message_id, res.data.page_token); // 传递message_id和新的page_token
                 users.push(...moreUsers);
             }
@@ -73,6 +78,7 @@ module.exports = async function (params, context, logger) {
         const readRecords = [];
         const userIds = readUsers.map(i => i.user_id);
         if (userIds.length > 0) {
+            // 获取飞书消息已读，但是 apaas 记录未度的阅读记录
             await DB(READ_OBJECT)
                 .where({
                     message_send_record: { _id },
@@ -96,6 +102,21 @@ module.exports = async function (params, context, logger) {
         }
     };
 
+    // 过滤不在 apaas 群成员范围内的阅读成员
+    const filterReadUsers = async (readUsers) => {
+        let apaasUsers = [];
+        if (readUsers.length > 0){
+            for (let readUser of readUsers) {
+                const userRecord = await application.data.object('_user').where({ _lark_user_id: readUser.user_id }).select('_id', '_department').findOne();
+                if (userRecord){
+                    // 若存在于 apaas 中的用户，则将其加入到 apaasUsers 数组中
+                    apaasUsers.push(readUser);
+                }
+            }
+        }
+        return apaasUsers;
+    }
+
     // 根据消息记录查询消息已读状态，更新消息记录
     const updateMessageRecord = async ({ _id, message_id, option_send_channel, message_chat, accept_user }) => {
         try {
@@ -103,20 +124,26 @@ module.exports = async function (params, context, logger) {
             if (readUsers.length > 0) {
                 let updateRecord = { _id };
                 if (option_send_channel === 'option_user') {
+                    // todo 个人信息发送阅读记录统计位置待处理
                     updateRecord = {
                         ...updateRecord,
-                        read_count: readUsers.length,
-                        unread_count: accept_user.length - readUsers.length,
+                        read_count: 1,
+                        // unread_count: accept_user.length - readUsers.length,
+                        unread_count: 0,
                         read_status: readUsers.length === 0 ? 'option_unread' : accept_user.length === readUsers.length ? 'option_read' : 'option_partread',
                     };
                 }
                 if (option_send_channel === 'option_group') {
+                    // 获取所有群成员 id
                     const chatMembers = await getChatInfo(message_chat);
+                    //  todo 校验飞书阅读人是否在 apaas群成员中，再更新未读数
                     await updateMessageRead(_id, readUsers);
+
+                    const inApaasReadUser = await filterReadUsers(readUsers);
                     updateRecord = {
                         ...updateRecord,
-                        read_count: readUsers.length,
-                        unread_count: chatMembers.length - readUsers.length,
+                        read_count: inApaasReadUser.length,
+                        unread_count: chatMembers.length - inApaasReadUser.length,
                         read_status: readUsers.length === 0 ? 'option_unread' : chatMembers.length === readUsers.length ? 'option_read' : 'option_partread',
                     };
                 }
@@ -136,8 +163,15 @@ module.exports = async function (params, context, logger) {
         try {
             const msgList = await getMsgRecord(_id);
             if (msgList.length > 0) {
-                const updateFun = createLimiter(updateMessageRecord, { perSecond: 2, perMinute: 400 });
-                const result = await Promise.all(msgList.map(i => updateFun(i)));
+                const updateFun = createLimiter(updateMessageRecord, { perSecond: 2, perMinute: 200 });
+                const result = await Promise.all(msgList.map(async (i, index) => {
+                    await new Promise(resolve => {
+                        setTimeout(async () => {
+                            const res = await updateFun(i);
+                            resolve(res);
+                        }, index * 100); // 每次处理的间隔为 100 毫秒
+                    });
+                }));
                 const successRes = result.filter(i => i.code === 0);
                 const failRes = result.filter(i => i.code === -1);
                 const noRunRes = result.filter(i => i.code === -2);
@@ -159,6 +193,7 @@ module.exports = async function (params, context, logger) {
                 message_batch: { _id },
                 unread_count: OP.gte(0),
                 read_status: OP.in('option_unread', 'option_partread'),
+                _createdAt: OP.gte(timestamp)
             })
             .select('_id', 'message_id', 'option_send_channel', 'message_chat', 'accept_user')
             .findStream(records => msgRecords.push(...records));
@@ -181,7 +216,7 @@ module.exports = async function (params, context, logger) {
     try {
         const batchList = await getBatchRecords();
         if (batchList.length > 0) {
-            const updateFun = createLimiter(updateRecordFun, { perSecond: 5 });
+            const updateFun = createLimiter(updateRecordFun, { perSecond: 2 });
             const result = await Promise.all(batchList.map(item => updateFun(item._id)));
             const successRes = result.filter(i => i.code === 0);
             const failRes = result.filter(i => i.code === -1);

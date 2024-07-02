@@ -263,11 +263,14 @@ async function createStoreTaskEntryStart(object_store_task, logger) {
                 option_type: 'option_priority',
                 option_api: object_store_task.option_priority,
             });
+            const namespace = await application.globalVar.getVar("namespace");
+            const tenantDomain = await application.globalVar.getVar("tenantDomain");
+
             //判断执行流程的url
-            const url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=' + storeTaskId;
-            const pc_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=' + storeTaskId;
-            const android_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=' + storeTaskId;
-            const ios_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=' + storeTaskId;
+            const url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=` + storeTaskId;
+            const pc_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=` + storeTaskId;
+            const android_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgihlti4uni?params_var_LLsDqf8w=` + storeTaskId;
+            const ios_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgihlti4uni?params_var_LLsDqf8w=` + storeTaskId;
 
             const hourDiff = (object_store_task.task_plan_time - dayjs().valueOf()) / 36e5;
             const content = {

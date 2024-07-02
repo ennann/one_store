@@ -349,9 +349,20 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                 option_api: storeTask.option_priority,
             });
 
-            const url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgik5q3gyhw?params_var_bcBO3kSg=' + storeTaskId._id;
+            let atAll = {};
+            if (storeTask.task_chat) {
+                atAll = {
+                    tag: 'markdown',
+                    content: '<at id=all></at>',
+                };
+            }
+
+            const namespace = await application.globalVar.getVar("namespace");
+            const tenantDomain = await application.globalVar.getVar("tenantDomain");
+
+            const url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=` + storeTaskId._id;
             const pc_url = url;
-            const android_url = 'https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgihlti4uni?params_var_LLsDqf8w=' + storeTaskId._id;
+            const android_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgihlti4uni?params_var_LLsDqf8w=` + storeTaskId._id;
             const ios_url = android_url;
             const hourDiff = (storeTask.task_plan_time - dayjs().valueOf()) / 36e5;
 
@@ -368,6 +379,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                     },
                     { tag: 'div', text: { content: '距离截至时间还有' + hourDiff.toFixed(2) + '小时', tag: 'plain_text' } },
                     { tag: 'hr' },
+                    atAll,
                     {
                         tag: 'action',
                         actions: [
@@ -384,6 +396,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
             };
 
             data.content = JSON.stringify(content);
+            logger.info('飞书消息发送内容：', data.content)
 
             if (storeTask.task_chat) {
                 const feishuChat = await application.data.object('object_feishu_chat').select('_id', 'chat_id').where({ _id: storeTask.task_chat._id }).findOne();
@@ -483,6 +496,8 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
         option_type: 'option_priority',
         option_api: taskDefRecord.option_priority,
     });
+    const namespace = await application.globalVar.getVar("namespace");
+    const tenantDomain = await application.globalVar.getVar("tenantDomain");
 
     // 遍历人员
     for (const user of userList) {
@@ -493,10 +508,10 @@ async function getTaskDefCopyAndFeishuMessageStructure(userList, taskDefRecord, 
             content: '',
         };
 
-        const default_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbd43lmhu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
+        const default_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgkbd43lmhu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
             taskBatch._id || taskBatch.id
         }`;
-        const mobile_url = `https://et6su6w956.feishuapp.cn/ae/apps/one_store__c/aadgkbfqddgbu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
+        const mobile_url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgkbfqddgbu?params_var_5CWWdDBS=${taskDefRecord._id || taskDefRecord.id}&params_var_M8Kd1eI6=${
             taskBatch._id || taskBatch.id
         }`;
 

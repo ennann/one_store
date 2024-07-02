@@ -14,6 +14,7 @@ module.exports = async function (params, context, logger) {
     // https://open.feishu.cn/document/server-docs/im-v1/message-content-description/create_json#45e0953e
     // https://open.feishu.cn/document/server-docs/im-v1/message/create?appId=cli_a68809f3b7f9500d
 
+    // record 为消息定义对象
     const { record } = params;
 
     const client = await newLarkClient({ userId: context.user._id }, logger);
@@ -43,20 +44,22 @@ module.exports = async function (params, context, logger) {
     };
 
     // 图片类型根据图片数量返回消息数据
-    const getImgContent = async () => {
+    const getImgContent = async (imgAtAll) => {
         if (!record.images || record.images.length === 0) {
             logger.error('消息定义没有图片');
             return [];
         }
         const imageKeys = await getImageKeys(record.images);
-        if (imageKeys.length === 1) {
-            return {
-                msg_type: 'image',
-                content: JSON.stringify({ image_key: imageKeys[0] }),
-            };
-        }
+        // if (imageKeys.length === 1) {
+        //     return {
+        //         msg_type: 'image',
+        //         content: JSON.stringify({ image_key: imageKeys[0] }),
+        //     };
+        // }
         // 多张图片使用消息卡片模板类型
         const elements = getCardImgElement(imageKeys);
+
+        elements.push(imgAtAll)
         let info = { elements };
         if (record.message_title) {
             info = {
@@ -82,13 +85,14 @@ module.exports = async function (params, context, logger) {
     };
 
     // 转换富文本-飞书卡片类型
-    const formatRichToCard = async (htmlString, title) => {
+    const formatRichToCard = async (htmlString, title, richText) => {
         const divs = [];
         const elements = [];
         let match;
         const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
         const divRegex = /<div[^>]*>\s*([\s\S]*?)\s*<\/div>/gs;
         const _htmlString = htmlString.replace(/<div[^>]*><\/div>/g, '');
+
 
         while ((match = divRegex.exec(_htmlString)) !== null && !!match[1]) {
             divs.push(match[1]);
@@ -114,7 +118,7 @@ module.exports = async function (params, context, logger) {
                 const content = transformText(div);
                 let textItem = {
                     tag: 'markdown',
-                    content,
+                    content: content,
                 };
                 const text_align = getTextAlignValue(div);
                 const text_size = getFontSizeValue(div);
@@ -127,6 +131,33 @@ module.exports = async function (params, context, logger) {
                 elements.push(textItem);
             }
         }
+        // const newElements = []; -> 涉及到深浅拷贝问题
+        for (const element of elements) {
+            // let newElement = element;
+
+            if (element.tag === 'markdown') {
+                const phoneNumbers = extractPhoneNumbers(element.content);
+                for (const phoneNumber of phoneNumbers) {
+                    // 根据手机号查询用户飞书 Id
+                    const user = await application.data
+                        .object('_user')
+                        .select(['_lark_user_id', '_id', '_phoneNumber', '_name'])
+                        .where({_phoneNumber: application.operator.contain(phoneNumber)})
+                        .findOne();
+                    // 设置map 数组
+                    if (user) {
+                        element.content = element.content.replace(/@1[3-9]\d{9}(?![\s\S]*@1[3-9]\d{9})/, `<at id=${user._lark_user_id}>${user._name[0].text}</at>`);
+                    }
+                }
+            }
+            // newElements.push(newElement);
+        }
+        // 添加@所有人
+        elements.push({
+            tag: 'markdown',
+            content: richText,
+        });
+
         let info = { elements };
         if (title) {
             info = {
@@ -148,16 +179,29 @@ module.exports = async function (params, context, logger) {
         switch (type) {
             // 富文本类型消息
             case 'option_rich_text':
-                const postData = await formatRichToCard(record.message_richtext.raw, record.message_title);
+                let richText = '';
+                if (record.send_channel !== 'option_user') {
+                    richText = '<at id=all></at>';
+                }
+                const postData = await formatRichToCard(record.message_richtext.raw, record.message_title,richText);
                 return {
                     msg_type: 'interactive',
                     content: JSON.stringify(postData),
                 };
             // 视频类型消息直接发成文本类型
             case 'option_video':
-                const textObj = {
-                    text: `${record.message_title ?? ''}\n\n${record.video_url}`,
-                };
+                let textObj ={};
+                if(record.send_channel === "option_user"){
+                    textObj = {
+                        text: `${record.message_title ?? ''}\n\n${record.video_url}` ,
+                    };
+                }else {
+                    // 发送发群的情况下消息末尾添加@所有人
+                    textObj = {
+                        text: `${record.message_title ?? ''}\n\n${record.video_url}`+`<at user_id=\"all\">所有人</at>` ,
+                    };
+                }
+
                 return {
                     msg_type: 'text',
                     content: JSON.stringify(textObj),
@@ -176,7 +220,17 @@ module.exports = async function (params, context, logger) {
                 };
             // 图片类型消息
             default:
-                const res = await getImgContent();
+                let imgAtAll= {};
+                if(record.send_channel !== "option_user"){
+                    imgAtAll = {
+                        "tag": "div",
+                        "text": {
+                            "content": "<at id=all></at>", //取值须使用 open_id 或 user_id 来 @ 指定人
+                            "tag": "lark_md"
+                        }
+                    }
+                }
+                const res = await getImgContent(imgAtAll);
                 return res;
         }
     };
@@ -211,8 +265,10 @@ const getCardImgElement = imageKeys => {
                 {
                     img_key,
                     tag: 'img',
-                    mode: 'fit_horizontal',
+                    // mode: 'fit_horizontal',
                     preview: true,
+                    scale_type: "crop_center",
+                    size: "large",
                     alt: {
                         content: '',
                         tag: 'plain_text',
@@ -359,3 +415,12 @@ const ColorEnum = {
     'rgb(216, 57, 49)': 'red-500',
     'rgb(98, 28, 24)': 'red-800',
 };
+
+// 获取文本中的@号码的数据，将其转换为飞书卡片@指定人的功能
+function extractPhoneNumbers(text) {
+    // 正则表达式匹配手机号码，这里以中国大陆手机号码为例，一般为11位数字，以1开头
+    const phoneRegex = /\b1[3-9]\d{9}\b/g;
+    const matches = text.match(phoneRegex);
+    return matches || []; // 如果没有找到匹配项，返回空数组
+}
+

@@ -15,7 +15,7 @@ module.exports = async function (params, context, logger) {
   // 找到任务定义记录
   let taskDefineRecord = await application.data
     .object('object_task_def')
-    .select('name', 'task_number', 'description', 'option_upload_image', 'option_input_information', 'option_upload_attachment', 'option_is_check', 'check_flow')
+    .select('name', 'task_number', 'description', 'option_upload_image', 'option_input_information', 'option_upload_attachment', 'option_is_check', 'check_flow','task_publisher')
     .where({ _id: store_task.task_def._id || store_task.task_def.id })
     .findOne();
 
@@ -41,7 +41,7 @@ module.exports = async function (params, context, logger) {
     checkTaskHandler = { _id: checkFlowDetailRecords.checkuser._id };
   } else {
     // 如果验收流程明细记录中的指定验收人为空，则根据验收流程明细记录中的验收人关系判断
-    // option_store_manager 门店店长、option_supervisor 直属上级、option_up_supervisor 间接上级、option_publisher 发布人
+    // option_store_manager-门店店长、option_supervisor-直属上级、option_up_supervisor-间接上级、option_publisher-发布人、option_store_instructor-指导员
     switch (checkFlowDetailRecords.option_relation_checkuser) {
       case 'option_store_manager':
         // 门店店长
@@ -79,8 +79,27 @@ module.exports = async function (params, context, logger) {
         break;
       case 'option_publisher':
         // 发布人
-        checkTaskHandler = { _id: store_task.task_handler._id || store_task.task_handler.id };
+        checkTaskHandler = { _id: taskDefineRecord.task_publisher._id || taskDefineRecord.task_publisher.id };
         break;
+      case 'option_store_instructor':
+          // 指导员
+          let chatInstructorRecord = await application.data
+              .object('object_store')
+              .select('store_instructor')
+              .where({store_chat_group:{ _id: store_task.task_chat._id || store_task.task_chat.id }})
+              .findOne();
+          if (chatInstructorRecord.store_instructor){
+          checkTaskHandler = { _id: chatInstructorRecord.store_instructor._id || chatInstructorRecord.store_instructor.id };
+          }else {
+              // 当门店没有指导员的情况下，默认使用门店店长
+              let chatManagerRecord = await application.data
+                  .object('object_feishu_chat')
+                  .select('chat_owner')
+                  .where({ _id: store_task.task_chat._id || store_task.task_chat.id })
+                  .findOne();
+              checkTaskHandler = { _id: chatManagerRecord.chat_owner._id || chatManagerRecord.chat_owner.id };
+          }
+          break;
       default:
         // 默认值
         checkTaskHandler = { _id: 1 };

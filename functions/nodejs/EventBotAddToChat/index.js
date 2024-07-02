@@ -77,16 +77,10 @@ async function generateCardButtonUrl(context, chat_id, group_id) {
     const SCOPE = 'im:chat';
     const STATE = `setgroupadmin_user`;
     const { appId: APPID } = await application.integration.getDefaultTenantAccessToken();
+    const namespace = await application.globalVar.getVar("namespace");
+    const tenantDomain = await application.globalVar.getVar("tenantDomain");
 
-    let BASE_URL = '';
-
-    if (context.tenant.type === 4) {
-        // 开发环境
-        BASE_URL = 'https%3A%2F%2Fet6su6w956-dev29.aedev.feishuapp.cn%2Fae%2Fapps%2Fone_store__c%2Faadgdtfskbqhi';
-    } else {
-        // 线上环境
-        BASE_URL = 'https%3A%2F%2Fet6su6w956.feishuapp.cn%2Fae%2Fapps%2Fone_store__c%2Faadgdtfskbqhi';
-    }
+    const BASE_URL =`https%3A%2F%2F${tenantDomain}.feishuapp.cn%2Fae%2Fapps%2F${namespace}%2Faadgdtfskbqhi`;
 
     const REDIRECT_URI = `${BASE_URL}%3Fparams_var_RDE3AgWC%3D${chat_id}%26params_var_QrP6EhWe%3D${group_id}`;
     // %3Fparams_var_RDE3AgWC%3Doc_34e76ae070db2034746777a762f86439%26params_var_QrP6EhWe%3D1796560404246715
