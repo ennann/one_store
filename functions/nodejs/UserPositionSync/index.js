@@ -30,9 +30,9 @@ module.exports = async function (params, context, logger) {
         logger.info(`批量创建的职务数据：${JSON.stringify(createRecords)}`);
         logger.info(`批量删除的职务数据：${JSON.stringify(deleteRecords)}`);
 
-        await batchOperation(logger, 'object_job_position', 'batchUpdate', updateRecords);
-        await batchOperation(logger, 'object_job_position', 'batchCreate', createRecords);
-        await batchOperation(logger, 'object_job_position', 'batchDelete', deleteRecords);
+        updateRecords.length && await batchOperation(logger, 'object_job_position', 'batchUpdate', updateRecords);
+        createRecords.length && await batchOperation(logger, 'object_job_position', 'batchCreate', createRecords);
+        deleteRecords.length && await batchOperation(logger, 'object_job_position', 'batchDelete', deleteRecords);
     } catch (error) {
         logger.error(`汇总用户职务函数执行失败: ${error.message}`);
     }
@@ -60,11 +60,12 @@ async function getFeishuJobRecords(client) {
  * @returns
  */
 async function getApaasJobRecords() {
+    const _ = application.operator;
     const apaasJobRecords = [];
     await application.data
         .object('object_job_position')
         .select('job_code', 'job_name', '_id')
-        .where({ job_code: application.operator.notIn[('store_manager', 'store_clerk')] })
+        .where({ job_code: _.and(_.neq('store_manager'), _.neq('store_clerk'))  })
         .findStream(records => apaasJobRecords.push(...records));
     return apaasJobRecords;
 }
