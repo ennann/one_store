@@ -2,8 +2,8 @@
     "apiID": "one_store__c__function_aadgqpdxsdgbs",
     "apiName": "UserPositionSync",
     "label": {
-        "zh_CN": "汇总用户职位信息",
-        "en_US": "User Position Sync"
+        "zh_CN": "同步用户职位信息",
+        "en_US": "Sync Feishu User Position"
     },
     "description": {
         "zh_CN": "根据用户表里的所有人员，汇总用户的职位信息",
