@@ -66,7 +66,7 @@ async function getApaasJobRecords() {
     await application.data
         .object('object_job_position')
         .select('job_code', 'job_name', '_id')
-        .where({ job_code: _.and(_.neq('store_manager'), _.neq('store_clerk'))  })
+        .where({ source: _.notIn('option_manual')  })
         .findStream(records => apaasJobRecords.push(...records));
     return apaasJobRecords;
 }
@@ -90,7 +90,8 @@ function syncJobRecords(feishuJobRecords, apaasJobRecords) {
         .map(feishuJobRecord => ({
             job_code: feishuJobRecord.job_title_id,
             job_name: feishuJobRecord.name,
-            description: '飞书自动同步字段'
+            description: '飞书自动同步字段',
+            source: 'option_feishu'
         }));
 
     const deleteRecords = apaasJobRecords
