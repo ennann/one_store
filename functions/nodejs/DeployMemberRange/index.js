@@ -71,7 +71,7 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    // 获取店员
+    // 获取店员人员
     const getStoreClerks = async query => {
         try {
             const clerks = [];
@@ -83,6 +83,22 @@ module.exports = async function (params, context, logger) {
             return clerks.map(i => i.store_staff);
         } catch (error) {
             logger.error('筛选人员时，获取店员人员发生错误：', error);
+            return [];
+        }
+    };
+
+    // 获取其他职务人员
+    const getOtherJobPosition = async query => {
+        try {
+            const otherJobPosition = [];
+            await application.data
+                .object('_user')
+                .where(query)
+                .select('_id')
+                .findStream(records => otherJobPosition.push(...records));
+            return otherJobPosition;
+        } catch (error) {
+            logger.error('筛选人员时，获取其他职务人员发生错误：', error);
             return [];
         }
     };
@@ -102,19 +118,26 @@ module.exports = async function (params, context, logger) {
             }
             department = userRecord._department;
         }
-        // 岗位数据，目前只有店长和店员
+        // 岗位数据
         const jobRecords = await application.data
             .object('object_job_position')
             .where({
                 _id: application.operator.hasAnyOf(job_position.map(item => item.id || item._id)),
             })
-            .select('job_code', '_id')
+            .select('job_code', '_id', 'source')
             .find();
         const funList = jobRecords.map(i => {
-            if (i.job_code === 'store_clerk') {
-                return getStoreClerks(department ? { store_staff_department: { _id: department._id } } : {});
-            } else {
-                return getStoreMangers(department ? { store_department: { _id: department._id } } : {});
+            // 如果岗位信息是手动维护的，就根据店长或者店员找到对应的人员
+            if (i.source === 'option_manual') {
+                if (i.job_code === 'store_clerk') {
+                    return getStoreClerks(department ? { store_staff_department: { _id: department._id } } : {});
+                } else {
+                    return getStoreMangers(department ? { store_department: { _id: department._id } } : {});
+                }
+            }
+            // 如果岗位信息是从飞书同步的，就在用户表里找到对应的人员
+            if (i.job_code === 'option_feishu') {
+                return getOtherJobPosition({ _jobTitle: i.job_name }, `用户表内岗位为${i.job_name}的所有人员`);
             }
         });
         const result = await Promise.all(funList);

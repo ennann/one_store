@@ -66,7 +66,7 @@ async function getApaasJobRecords() {
     await application.data
         .object('object_job_position')
         .select('job_code', 'job_name', '_id')
-        .where({ source: _.notIn('option_manual')  })
+        .where({ source: _.notIn('option_manual') })
         .findStream(records => apaasJobRecords.push(...records));
     return apaasJobRecords;
 }
