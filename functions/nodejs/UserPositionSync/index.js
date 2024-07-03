@@ -40,8 +40,8 @@ module.exports = async function (params, context, logger) {
 
 /**
  * @description 获取 Feishu 职务数据
- * @param {*} client 
- * @returns 
+ * @param {*} client
+ * @returns
  */
 async function getFeishuJobRecords(client) {
     const feishuJobRecords = [];
@@ -57,22 +57,23 @@ async function getFeishuJobRecords(client) {
 
 /**
  * @description 获取 aPaaS 职务数据
- * @returns 
+ * @returns
  */
 async function getApaasJobRecords() {
     const apaasJobRecords = [];
     await application.data
         .object('object_job_position')
         .select('job_code', 'job_name', '_id')
+        .where({ job_code: application.operator.notIn[('store_manager', 'store_clerk')] })
         .findStream(records => apaasJobRecords.push(...records));
     return apaasJobRecords;
 }
 
 /**
  * @description 同步 Feishu 和 aPaaS 的职务数据
- * @param {Array} feishuJobRecords 
- * @param {Array} apaasJobRecords 
- * @returns 
+ * @param {Array} feishuJobRecords
+ * @param {Array} apaasJobRecords
+ * @returns
  */
 function syncJobRecords(feishuJobRecords, apaasJobRecords) {
     const updateRecords = feishuJobRecords
@@ -87,6 +88,7 @@ function syncJobRecords(feishuJobRecords, apaasJobRecords) {
         .map(feishuJobRecord => ({
             job_code: feishuJobRecord.job_title_id,
             job_name: feishuJobRecord.name,
+            description: '飞书自动同步字段'
         }));
 
     const deleteRecords = apaasJobRecords
