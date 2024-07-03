@@ -49,7 +49,8 @@ async function getFeishuJobRecords(client) {
     for await (const item of await client.contact.jobTitle.listWithIterator({
         params: { page_size: 50 },
     })) {
-        feishuJobRecords.push(...item.items);
+        const filteredItems = response.items.filter(item => item.status === true);
+        feishuJobRecords.push(...filteredItems);
     }
 
     return feishuJobRecords;
@@ -79,7 +80,7 @@ async function getApaasJobRecords() {
 function syncJobRecords(feishuJobRecords, apaasJobRecords) {
     const updateRecords = feishuJobRecords
         .map(feishuJobRecord => {
-            const apaasJobRecord = apaasJobRecords.find(item => item.job_code === feishuJobRecord.job_title_id);
+            const apaasJobRecord = apaasJobRecords.find(item =>item.job_code === feishuJobRecord.job_title_id);
             return apaasJobRecord ? { _id: apaasJobRecord._id, job_name: feishuJobRecord.name } : null;
         })
         .filter(record => record !== null);
