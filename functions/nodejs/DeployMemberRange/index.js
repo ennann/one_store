@@ -11,7 +11,7 @@
 module.exports = async function (params, context, logger) {
     logger.info(`查找人员范围函数开始执行`, params);
 
-    const { user_rule, user_department, work_team, job_position, publisher } = params;
+    const { user_rule, work_team, user_department, job_position, publisher } = params;
     let userList = [];
 
     if (!user_rule && !work_team && !user_department && !job_position) {
@@ -19,11 +19,12 @@ module.exports = async function (params, context, logger) {
         return userList;
     }
 
+    // 补全人员规则字段的数据
     let ruleRecord = {};
     if (user_rule) {
         ruleRecord = await application.data
             .object('object_user_rule')
-            .select(['_id', 'job_position', 'department', 'work_team'])
+            .select(['_id', 'job_position', 'department', 'work_team', 'department', 'job_position'])
             .where({ _id: user_rule._id || user_rule.id })
             .findOne();
     } else {
@@ -37,7 +38,9 @@ module.exports = async function (params, context, logger) {
             ruleRecord = { ...ruleRecord, job_position };
         }
     }
+    logger.info('筛选人员规则：', ruleRecord);
 
+    // 原子函数：获取用户记录数据
     const getUserRecord = async (query, description) => {
         try {
             const userRecords = [];
@@ -55,14 +58,14 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    // 获取店长人员
+    // 原子函数：获取店长人员
     const getStoreMangers = async query => {
         try {
             const manager = [];
             await application.data
                 .object('object_store')
-                .where(query)
                 .select('store_manager', '_id')
+                .where(query)
                 .findStream(records => manager.push(...records));
             return manager.map(i => i.store_manager);
         } catch (error) {
@@ -71,14 +74,14 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    // 获取店员人员
+    // 原子函数：获取店员人员
     const getStoreClerks = async query => {
         try {
             const clerks = [];
             await application.data
                 .object('object_store_staff')
-                .where(query)
                 .select('store_staff', '_id')
+                .where(query)
                 .findStream(records => clerks.push(...records));
             return clerks.map(i => i.store_staff);
         } catch (error) {
@@ -87,14 +90,14 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    // 获取其他职务人员
+    // 原子函数：获取其他职务人员
     const getOtherJobPosition = async query => {
         try {
             const otherJobPosition = [];
             await application.data
                 .object('_user')
+                .select('_id', '_lark_user_id')
                 .where(query)
-                .select('_id')
                 .findStream(records => otherJobPosition.push(...records));
             return otherJobPosition;
         } catch (error) {
@@ -103,31 +106,34 @@ module.exports = async function (params, context, logger) {
         }
     };
 
-    // 获取门店店长和门店成员
+    // 获取特定岗位下的所有人员
     const getMembers = async (roleRecord, job_position) => {
         let department; // 发布人的部门
         if (roleRecord.role !== 'option_admin') {
             // 不为管理员
             const userRecord = await application.data
                 .object('_user')
+                .select('_id', '_department', '_lark_user_id')
                 .where({ _id: publisher._id || publisher.id, _department: application.operator.notEmpty() })
-                .select('_id', '_department')
                 .findOne();
             if (!userRecord._department) {
                 return [];
             }
             department = userRecord._department;
         }
-        // 岗位数据
-        const jobRecords = await application.data
+
+        // 原子函数：根据岗位记录ID查找岗位数据
+        const jobPositionRecords = await application.data
             .object('object_job_position')
+            .select('job_code', '_id', 'source')
             .where({
                 _id: application.operator.hasAnyOf(job_position.map(item => item.id || item._id)),
             })
-            .select('job_code', '_id', 'source')
             .find();
-        const funList = jobRecords.map(i => {
-            // 如果岗位信息是手动维护的，就根据店长或者店员找到对应的人员
+        logger.info('【日志检查】获取到的岗位记录：', jobPositionRecords);
+        
+        const funList = jobPositionRecords.map(i => {
+            // 1. 如果岗位信息是手动维护的，就根据店长或者店员找到对应的人员
             if (i.source === 'option_manual') {
                 if (i.job_code === 'store_clerk') {
                     return getStoreClerks(department ? { store_staff_department: { _id: department._id } } : {});
@@ -135,12 +141,13 @@ module.exports = async function (params, context, logger) {
                     return getStoreMangers(department ? { store_department: { _id: department._id } } : {});
                 }
             }
-            // 如果岗位信息是从飞书同步的，就在用户表里找到对应的人员
+            // 2. 如果岗位信息是从飞书同步的，就在用户表里找到对应的人员
             if (i.job_code === 'option_feishu') {
                 return getOtherJobPosition({ _jobTitle: i.job_name }, `用户表内岗位为${i.job_name}的所有人员`);
             }
         });
         const result = await Promise.all(funList);
+        logger.info('【日志检查】获取到的岗位下的人员：', result);
         const ids = result.flat().map(i => i._id);
         const users = await getUserRecord({ _id: application.operator.hasAnyOf(ids) }, '所属岗位');
         return users;
@@ -194,9 +201,10 @@ module.exports = async function (params, context, logger) {
             // 获取权限
             const roleRecord = await application.data
                 .object('object_permission')
-                .where({ user: { _id: publisher._id || publisher.id }, status: true })
                 .select('_id', 'role')
+                .where({ user: { _id: publisher._id || publisher.id }, status: true })
                 .findOne();
+            logger.info('【权限检查】发布人权限记录：', roleRecord);
             if (roleRecord) {
                 jobUsers = await getMembers(roleRecord, ruleRecord.job_position);
             } else {
