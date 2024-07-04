@@ -12,13 +12,21 @@ module.exports = async function (params, context, logger) {
     const currentTime = dayjs().valueOf(); // 当前时间时间戳
     logger.info(`当前时间戳: ${currentTime}，开始执行任务提示`);
 
-    // 查询符合条件的门店普通任务 筛选未完成,但是尚未超时的任务
+    // 查询符合条件的门店普通任务 筛选未完成,但是尚未超时的任务（临期任务）
     const taskQuery = {
         task_status: application.operator.in('option_pending', 'option_transferred', 'option_rollback'),
         task_plan_time: application.operator.gte(currentTime),
         set_warning_time: 'option_yes',
     };
 
+    // 超期任务条件
+    const extendedTaskQuery = {
+        task_status: application.operator.in('option_pending', 'option_transferred', 'option_rollback'),
+        task_plan_time: application.operator.lte(currentTime),
+        set_warning_time: 'option_yes',
+        overdue_reminders: 'option_no'
+    }
+    // 获取到超期以及即将需要提醒的任务
     const tasks = [];
     await application.data
         .object('object_store_task')
@@ -34,19 +42,20 @@ module.exports = async function (params, context, logger) {
             'source_department',
             'task_create_time',
             'deadline_time',
-        )
-        .where(taskQuery)
-        .findStream(record => {
+            'is_overdue',
+        ).where(
+            application.operator.or(taskQuery, extendedTaskQuery)
+        ).findStream(record => {
             tasks.push(...record);
         });
 
     const warningTasks = filterWarningTasks(tasks, currentTime, logger);
-    const messageCardSendDataList = await generateMessageCardSendData(warningTasks, logger);
+    const messageCardSendDataList = await generateMessageCardSendData(warningTasks, logger, currentTime);
 
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
     const limitedSendFeishuMessage = createLimiter(sendFeishuMessage);
-    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(data => limitedSendFeishuMessage(data, client)));
+    const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(item => limitedSendFeishuMessage(item, client)));
 
     const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
     const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
@@ -68,12 +77,17 @@ module.exports = async function (params, context, logger) {
 function filterWarningTasks(tasks, currentTime, logger) {
     const warningTasks = [];
     for (const task of tasks) {
-        const now = dayjs(currentTime);
-        const taskPlanTime = dayjs(task.task_plan_time);
-        const warningEndTime = now.add(Number.parseInt(task.warning_time), 'hour');
-        const warningStartTime = now.add(Number.parseInt(task.warning_time) - 1, 'hour');
+        // 未超期的任务
+        if (task.task_plan_time > currentTime){
+            const now = dayjs(currentTime);
+            const taskPlanTime = dayjs(task.task_plan_time);
+            const warningEndTime = now.add(Number.parseInt(task.warning_time), 'hour');
+            const warningStartTime = now.add(Number.parseInt(task.warning_time) - 1, 'hour');
 
-        if (!warningEndTime.isBefore(taskPlanTime) && warningStartTime.isBefore(taskPlanTime)) {
+            if (!warningEndTime.isBefore(taskPlanTime) && warningStartTime.isBefore(taskPlanTime)) {
+                warningTasks.push(task);
+            }
+        }else {
             warningTasks.push(task);
         }
     }
@@ -85,9 +99,10 @@ function filterWarningTasks(tasks, currentTime, logger) {
  * 生成需要发送的消息卡片数据
  * @param {Array} tasks 需要提醒的任务列表
  * @param {Logger} logger 日志记录器
+ * @param currentTime
  * @returns {Array} 消息卡片数据列表
  */
-async function generateMessageCardSendData(tasks, logger) {
+async function generateMessageCardSendData(tasks, logger,currentTime) {
     const messageCardSendDataList = [];
     for (const task of tasks) {
         const priority = await faas.function('GetOptionName').invoke({
@@ -100,7 +115,7 @@ async function generateMessageCardSendData(tasks, logger) {
         const tenantDomain = await application.globalVar.getVar("tenantDomain");
 
         const url = generateTaskUrl(task._id,namespace,tenantDomain);
-        const content = generateMessageContent(task, priority.option_name, url);
+        const content = generateMessageContent(task, priority.option_name, url, currentTime);
 
         const data = {
             receive_id_type: '',
@@ -139,7 +154,7 @@ async function generateMessageCardSendData(tasks, logger) {
                 }
             }
         }
-        messageCardSendDataList.push(data);
+        messageCardSendDataList.push({msgData:data, task: task});
     }
     return messageCardSendDataList;
 }
@@ -164,9 +179,78 @@ function generateTaskUrl(taskId,namespace,tenantDomain) {
  * @param {Object} task 任务对象
  * @param {String} priority 任务优先级
  * @param {Object} url URL对象
+ * @param currentTime 当前时间时间戳
  * @returns {Object} 消息内容对象
  */
-function generateMessageContent(task, priority, url) {
+function generateMessageContent(task, priority, url,currentTime) {
+    if (task.is_overdue === '超期'){
+
+        let taskPlanTime = task.task_plan_time; // task_plan_time 时间戳
+        // 计算时间差（毫秒）
+        let timeDiff = Math.abs(currentTime - taskPlanTime);
+        // 将时间差转换为小时并保留两位小数
+        let hoursDiff = (timeDiff / (1000 * 60 * 60)).toFixed(2);
+
+        return {
+            config: {
+                wide_screen_mode: true,
+            },
+            elements: [
+                {
+                    tag: 'div',
+                    text: {
+                        content: '任务优先级：' + priority,
+                        tag: 'plain_text',
+                    },
+                },
+                {
+                    tag: 'div',
+                    text: {
+                        content: '任务来源：' + task.source_department._name.find(item => item.language_code === 2052).text,
+                        tag: 'plain_text',
+                    },
+                },
+                {
+                    tag: 'div',
+                    text: {
+                        content: '任务下发时间：' + dayjs(task.task_create_time).add(8, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+                        tag: 'plain_text',
+                    },
+                },
+                {
+                    tag: 'div',
+                    text: {
+                        content: '该任务已超时' + hoursDiff + '小时',
+                        tag: 'plain_text',
+                    },
+                },
+                {
+                    tag: 'hr',
+                },
+                {
+                    tag: 'action',
+                    actions: [
+                        {
+                            tag: 'button',
+                            text: {
+                                tag: 'plain_text',
+                                content: '查看详情',
+                            },
+                            type: 'primary',
+                            multi_url: url,
+                        },
+                    ],
+                },
+            ],
+            header: {
+                template: 'turquoise',
+                title: {
+                    content: '【任务已超期】有一条' + task.name + '门店任务请尽快处理！',
+                    tag: 'plain_text',
+                },
+            },
+        };
+    }
     return {
         config: {
             wide_screen_mode: true,
@@ -247,7 +331,7 @@ async function getUser(userId) {
     return await application.data.object('_user').select('_id', '_department', '_lark_user_id').where({ _id: userId }).findOne();
 }
 
-/**
+/**·
  * 获取任务定义
  * @param {String} taskDefId 任务定义ID
  * @returns {Object} 任务定义对象
@@ -266,9 +350,19 @@ async function getDepartmentChatId(departmentId) {
     return chat ? chat.chat_id : null;
 }
 
-const sendFeishuMessage = async (messageCardSendData, client) => {
+const sendFeishuMessage = async (msgDataAndTask, client) => {
     try {
-        let result = await faas.function('MessageCardSend').invoke({ ...messageCardSendData, client });
+        let result = await faas.function('MessageCardSend').invoke({ ...msgDataAndTask.msgData, client });
+        if (result.code === 0 && msgDataAndTask.task.is_overdue === '超期') {
+            // 更新门店任务提醒次数
+
+            try {
+                await application.data.object('object_store_task').update( msgDataAndTask.task._id , { overdue_reminders: 'option_yes'});
+                console.log('更新成功：');
+            } catch (error) {
+                console.error(`超期任务${msgDataAndTask.task._id}是否提醒字段更新失败：`, error);
+            }
+        }
         return result;
     } catch (error) {
         return { code: -1, message: error.message, result: 'failed' };

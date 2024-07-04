@@ -224,6 +224,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
                         },
                         option_priority: taskDefine.option_priority,
                         task_chat: {_id: chatRecordListElement._id},
+                        overdue_reminders: 'option_no',
                     };
                 }else {
                     createData = {
@@ -246,6 +247,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
                         },
                         option_priority: taskDefine.option_priority,
                         task_chat: {_id: chatRecordListElement._id},
+                        overdue_reminders: 'option_no',
                     };
                 }
 
@@ -276,25 +278,55 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
                 });
 
             for (const userListElement of userList) {
-                const createData = {
-                    name: taskDefine.name,
-                    description: taskDefine.description,
-                    task_def: { _id: taskDefine._id },
-                    task_monitor: { _id: taskBatch._id },
-                    task_status: 'option_pending',
-                    task_create_time: taskBatch.task_create_time,
-                    task_plan_time: task_plan_time,
-                    is_overdue: 'option_no',
-                    option_upload_image: taskDefine.option_upload_image,
-                    option_input_information: taskDefine.option_input_information,
-                    option_upload_attachment: taskDefine.option_upload_attachment,
-                    set_warning_time: taskDefine.set_warning_time,
-                    warning_time: taskDefine.warning_time,
-                    source_department: { _id: department_record._id || department_record.id, _name: department_record._name },
-                    option_priority: taskDefine.option_priority,
-                    task_handler: { _id: userListElement._id },
-                };
-
+                let createData;
+                // 判断为一次性任务还是周期期任务，存储的任务截止日期处理逻辑不同
+                if (taskDefine.option_method === 'option_once') {
+                    createData = {
+                        name: taskDefine.name,
+                        description: taskDefine.description,
+                        task_def: {_id: taskDefine._id},
+                        task_monitor: {_id: taskBatch._id},
+                        task_status: 'option_pending',
+                        task_create_time: taskBatch.task_create_time,
+                        task_plan_time: taskDefine.onetime_task_endtime,
+                        is_overdue: 'option_no',
+                        option_upload_image: taskDefine.option_upload_image,
+                        option_input_information: taskDefine.option_input_information,
+                        option_upload_attachment: taskDefine.option_upload_attachment,
+                        set_warning_time: taskDefine.set_warning_time,
+                        warning_time: taskDefine.warning_time,
+                        source_department: {
+                            _id: department_record._id || department_record.id,
+                            _name: department_record._name
+                        },
+                        option_priority: taskDefine.option_priority,
+                        task_handler: {_id: userListElement._id},
+                        overdue_reminders: 'option_no',
+                    };
+                }else {
+                    createData = {
+                        name: taskDefine.name,
+                        description: taskDefine.description,
+                        task_def: {_id: taskDefine._id},
+                        task_monitor: {_id: taskBatch._id},
+                        task_status: 'option_pending',
+                        task_create_time: taskBatch.task_create_time,
+                        task_plan_time: task_plan_time,
+                        is_overdue: 'option_no',
+                        option_upload_image: taskDefine.option_upload_image,
+                        option_input_information: taskDefine.option_input_information,
+                        option_upload_attachment: taskDefine.option_upload_attachment,
+                        set_warning_time: taskDefine.set_warning_time,
+                        warning_time: taskDefine.warning_time,
+                        source_department: {
+                            _id: department_record._id || department_record.id,
+                            _name: department_record._name
+                        },
+                        option_priority: taskDefine.option_priority,
+                        task_handler: {_id: userListElement._id},
+                        overdue_reminders: 'option_no',
+                    };
+                }
                 const user = userRecordDetailList.find(item => item._id === userListElement._id);
                 createData.deal_department = { _id: user._department._id || user._department.id };
                 createDataList.push(createData);
