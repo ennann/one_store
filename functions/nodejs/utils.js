@@ -70,19 +70,29 @@ async function createLarkClient() {
 function createLimiter(fn, options = {}) {
     const { perSecond = 50, perMinute = 1000 } = options;
 
-    const secondLimiter = new Bottleneck({
-        reservoir: perSecond,
-        reservoirRefreshAmount: perSecond,
-        reservoirRefreshInterval: 1000,
+    // const secondLimiter = new Bottleneck({
+    //     reservoir: perSecond,
+    //     reservoirRefreshAmount: perSecond,
+    //     maxConcurrent: 1,
+    //     minTime: 60,
+    //     reservoirRefreshInterval: 1000,
+    // });
+
+    // const minuteLimiter = new Bottleneck({
+    //     reservoir: perMinute,
+    //     reservoirRefreshAmount: perMinute,
+    //     reservoirRefreshInterval: 60 * 1000,
+    // });
+
+    const limiter = new Bottleneck({
+        reservoir: 15, // 初始值，每秒允许15个请求
+        reservoirRefreshAmount: 15, // 每次刷新时将 reservoir 重置为 15
+        reservoirRefreshInterval: 1000, // 每秒刷新一次，即 1000 毫秒
+        maxConcurrent: 15, // 同时允许的最大请求数为 15
+        minTime: 0, // 请求之间没有最小时间间隔
     });
 
-    const minuteLimiter = new Bottleneck({
-        reservoir: perMinute,
-        reservoirRefreshAmount: perMinute,
-        reservoirRefreshInterval: 60 * 1000,
-    });
-
-    return secondLimiter.wrap(minuteLimiter.wrap(fn));
+    return limiter.wrap(fn);
 }
 
 /**
@@ -381,11 +391,9 @@ async function fetchUserMobilePhoneById(user_id) {
     return response.data.user.mobile;
 }
 
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
+}
 
 module.exports = {
     createLarkClient,
@@ -402,5 +410,5 @@ module.exports = {
     fetchDepartmentInfoById,
     chunkArray,
     fetchUserMobilePhoneById,
-    sleep
+    sleep,
 };
