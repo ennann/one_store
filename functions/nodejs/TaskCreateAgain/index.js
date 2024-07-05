@@ -54,15 +54,20 @@ module.exports = async function (params, context, logger) {
             'is_workday_support', //是否支持工作日历 布尔
             'warning_time', //设置预警时间（小时）
             'set_warning_time', //设置任务到期前提醒
+            'onetime_task_endtime', //一次性任务结束时间'
         )
         .where({ _id: object_task_create_monitor.task_def._id || object_task_create_monitor.task_def.id })
         .findOne();
     // task 代表任务处理记录
     const createDataList = [];
+    //
     let task_plan_time = dayjs(object_task_create_monitor.task_create_time).add(0, 'day').valueOf();
-    if (!object_task_def.deal_duration) {
-        task_plan_time = dayjs(object_task_create_monitor.task_create_time).add(Number.parseInt(object_task_def.deal_duration), 'day').valueOf();
+    if (object_task_def.option_method === 'option_01' && object_task_def.deal_duration) {
+         task_plan_time = dayjs(object_task_create_monitor.task_create_time).add(Number.parseInt(object_task_def.deal_duration), 'day').valueOf();
+    }else if (object_task_def.option_method === 'option_02' && object_task_def.onetime_task_endtime){
+        task_plan_time = object_task_def.onetime_task_endtime;
     }
+
     //获取部门详情
     let department_record = await application.data
         .object('_department')

@@ -1,0 +1,15 @@
+{
+    "params": {
+        "user_rule": {
+            "id": 1802906972183571,
+            "is_deleted": false,
+            "name": ""
+        },
+        "publisher": {
+            "id": 1798281554498611,
+            "is_deleted": false,
+            "name": ""
+        }
+    },
+    "context": {}
+}

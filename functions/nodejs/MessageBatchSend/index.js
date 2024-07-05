@@ -17,7 +17,7 @@ module.exports = async function (params, context, logger) {
 
     // 创建飞书SDK客户端
     const client = await newLarkClient({ userId: context.user._id }, logger);
-    logger.info('飞书SDK客户端创建成功', client);
+    // logger.info('飞书SDK客户端创建成功');
 
     // 创建消息发送批次记录
     const createSendRecord = async () => {

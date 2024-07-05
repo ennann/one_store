@@ -121,7 +121,7 @@ module.exports = async function (params, context, logger) {
             }
             department = userRecord._department;
         }
-
+    
         // 原子函数：根据岗位记录ID查找岗位数据
         const jobPositionRecords = await application.data
             .object('object_job_position')
@@ -130,7 +130,7 @@ module.exports = async function (params, context, logger) {
                 _id: application.operator.hasAnyOf(job_position.map(item => item.id || item._id)),
             })
             .find();
-        logger.info('【日志检查】获取到的岗位记录：', jobPositionRecords);
+        logger.info('【日志检查】获取到的岗位记录：', JSON.parse(jobPositionRecords));
         
         const funList = jobPositionRecords.map(i => {
             // 1. 如果岗位信息是手动维护的，就根据店长或者店员找到对应的人员
@@ -143,13 +143,15 @@ module.exports = async function (params, context, logger) {
             }
             // 2. 如果岗位信息是从飞书同步的，就在用户表里找到对应的人员
             if (i.job_code === 'option_feishu') {
-                return getOtherJobPosition({ _jobTitle: i.job_name }, `用户表内岗位为${i.job_name}的所有人员`);
+                return getOtherJobPosition({ _jobTitle: i.job_name });
             }
+            return Promise.resolve([]); // 添加默认返回值，确保返回的是 Promise
         });
+        
         const result = await Promise.all(funList);
         logger.info('【日志检查】获取到的岗位下的人员：', result);
-        const ids = result.flat().map(i => i._id);
-        const users = await getUserRecord({ _id: application.operator.hasAnyOf(ids) }, '所属岗位');
+        const apaasUserRecordIds = result.flat().map(i => i._id || i.id).filter(id => id);
+        const users = await getUserRecord({ _id: application.operator.hasAnyOf(apaasUserRecordIds) }, '所属岗位');
         return users;
     };
 
@@ -212,7 +214,6 @@ module.exports = async function (params, context, logger) {
             }
         } else {
             logger.warn('缺少发布人参数');
-            // throw new Error("缺少发布人参数");
         }
         userList.push(...jobUsers);
     }
