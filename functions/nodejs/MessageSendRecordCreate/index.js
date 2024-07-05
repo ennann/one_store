@@ -59,7 +59,6 @@ module.exports = async function (params, context, logger) {
                 allMemberIds,
             };
         } catch (error) {
-            // todo 怀疑是否是产生问题的原因
             logger.error(`获取飞书群 ${data.chat_id} 信息失败`, error);
         }
     };
@@ -75,7 +74,6 @@ module.exports = async function (params, context, logger) {
             };
         } catch (error) {
             logger.error(`获取人员 ${_lark_user_id} 信息失败`, error);
-            // todo 同上
             return { unread_count: 0 };
         }
     };
