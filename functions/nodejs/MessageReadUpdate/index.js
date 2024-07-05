@@ -62,8 +62,8 @@ module.exports = async function (params, context, logger) {
             }
             users.push(...res.data.items);
             if (res.data.has_more) {
-                await sleep(20);
-                const moreUsers = await getReadUsers(message_id, res.data.page_token); // 传递message_id和新的page_token
+                const limitedGetReadUsers = createLimiter(getReadUsers);
+                const moreUsers = await limitedGetReadUsers(message_id, res.data.page_token); // 使用限流后的函数
                 users.push(...moreUsers);
             }
             return users;
