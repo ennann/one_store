@@ -163,7 +163,7 @@ module.exports = async function (params, context, logger) {
         try {
             const msgList = await getMsgRecord(_id);
             if (msgList.length > 0) {
-                const updateFun = createLimiter(updateMessageRecord, { perSecond: 2, perMinute: 200 });
+                const updateFun = createLimiter(updateMessageRecord);
                 const result = await Promise.all(msgList.map(async (i, index) => {
                     await new Promise(resolve => {
                         setTimeout(async () => {
@@ -172,9 +172,6 @@ module.exports = async function (params, context, logger) {
                         }, index * 100); // 每次处理的间隔为 100 毫秒
                     });
                 }));
-                const successRes = result.filter(i => i.code === 0);
-                const failRes = result.filter(i => i.code === -1);
-                const noRunRes = result.filter(i => i.code === -2);
                 return { code: 0 };
             } else {
                 return { code: -2 };
