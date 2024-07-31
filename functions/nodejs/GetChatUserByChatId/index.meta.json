@@ -1,0 +1,37 @@
+{
+  "apiID": "one_store__c__function_aadguhvm5uukw",
+  "apiName": "GetChatUserByChatId",
+  "label": {
+    "zh_CN": "获取群成员列表",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [
+    {
+      "key": "larkChatId",
+      "type": "Text",
+      "label": "飞书 id",
+      "required": false,
+      "description": ""
+    }
+  ],
+  "output": [
+    {
+      "key": "code",
+      "type": "Text",
+      "label": "状态码",
+      "description": ""
+    },
+    {
+      "key": "msg",
+      "type": "Text",
+      "label": "信息",
+      "description": ""
+    }
+  ]
+}

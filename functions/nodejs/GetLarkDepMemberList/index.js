@@ -13,17 +13,25 @@ const {newLarkClient} = require('../utils');
  */
 module.exports = async function (params, context, logger) {
     // 日志功能
-    logger.info(`${new Date()} 获取部门人员函数开始执行：`, params);
-
+    logger.info(`${new Date()} 获取部门人员函数开始执行：`,params);
+    //   const messageDefineFields = await application.metadata.object('_department').getFields();
+    // const fieldApiNames = messageDefineFields.map(item => item.apiName);
+    //
+    //
+    // const oldDepAllStore111 = await application.data
+    //     .object('_department')
+    //     .select(fieldApiNames)
+    //     .find();
     const client = await newLarkClient({userId: context.user._id}, logger);
     // logger.info('Lark 客户端初始化完成', client);
     // 获取 token
+    // await baas.redis.setex(today, 24 * 60 * 60, 1);
     let appToken = await baas.redis.get("appToken");
 
     const clientId = await application.globalVar.getVar("clientId");
     const clientSecret = await application.globalVar.getVar("clientSecret");
     // 调用飞书查询直属部门下成员列表
-    const getDepUserList = async (pageToken, externalOpenDepartmentId) => {
+    const getDepUserList = async (pageToken,externalOpenDepartmentId) => {
         const depUserList = [];
         try {
             const depUserRes = await client.contact.user.findByDepartment({
@@ -44,7 +52,7 @@ module.exports = async function (params, context, logger) {
             if (!depUserRes.data.has_more) {
                 return depUserList;
             }
-            const moreDepUserList = await getDepUserList(depUserRes.data.page_token, externalOpenDepartmentId);
+            const moreDepUserList = await getDepUserList(depUserRes.data.page_token,externalOpenDepartmentId);
             depUserList.push(...moreDepUserList);
 
             return depUserList;
@@ -117,10 +125,22 @@ module.exports = async function (params, context, logger) {
     await axios.request(getDepConfig)
         .then(async (response) => {
             logger.info('调用获取部门 id 接口成功：', response.data)
+            response.data = {
+              "code": "0",
+              "data": [
+                  {
+                      "department_id": "1798375808759852",
+                      "external_department_id": "3g68fedde76fc86a",
+                      "external_open_department_id": "od-c247f42f5e027ffd7abc3709cdf379b3"
+                  }
+              ],
+              "msg": "success"
+          };
             if (response.data.code === '0') {
                 let depData = response.data.data[0];
                 // externalDepartmentId = depData.external_department_id;
                 externalOpenDepartmentId = depData.external_open_department_id;
+                logger.info('ceshi:',externalOpenDepartmentId)
             }
         })
         .catch((error) => {
@@ -131,7 +151,7 @@ module.exports = async function (params, context, logger) {
     if (!externalOpenDepartmentId) {
         return {code: -1, msg: "获取部门 id 失败"}
     }
-    let depUserRes = [];
+    const depUserRes = [];
     if (externalOpenDepartmentId) {
         depUserRes = await getDepUserList('', externalOpenDepartmentId);
     }

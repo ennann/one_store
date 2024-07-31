@@ -2,6 +2,7 @@
 // 如安装 linq 包后就可以引入并使用这个包
 // const linq = require("linq");
 const {newLarkClient} = require('../utils');
+const dayjs = require('dayjs');
 /**
  * @param {Params}  params     自定义参数
  * @param {Context} context    上下文参数，可通过此参数下钻获取上下文变量信息等
@@ -10,7 +11,103 @@ const {newLarkClient} = require('../utils');
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
-    await baas.redis.setex("appToken", 5, '');
+
+
+
+  let  chatMember;
+  try {
+      chatMember = await application.data.object('object_chat_member')
+          .select('_id')
+          .where({
+              store_chat: {_id: '1798741338021002'},
+              chat_member: {_id: '1798283374292995'}
+          })
+          .findOne();
+  } catch (e){
+      logger.error(`${new Date()} 查询用户是否在飞书群成员中失败`, e);
+  }
+
+  const messageDefineFields3 = await application.metadata.object('object_store_task').getFields();
+  const fieldApiNames3 = messageDefineFields3.map(item => item.apiName);
+
+  const groupMemberRes1 = await application.data.
+  object('object_store_task')
+      .select(fieldApiNames3)
+      .where({
+        _id: 1803521801774123
+      })
+      .findOne();
+  logger.info(groupMemberRes1);
+
+  try {
+    const updateflag = await application.data.object('object_store_task').update( 1803521801774123, { overdue_reminders: 'option_yes'});
+    console.log('更新成功：', updateflag);
+} catch (error) {
+    console.error('更新失败：', error);
+}
+
+  const currentTime = dayjs().valueOf(); // 当前时间时间戳
+
+  // logger.info((currentTime - groupMemberRes1.task_plan_time));
+
+  logger.info(`当前时间戳: ${currentTime}，开始执行任务提示`);
+
+  // 查询符合条件的门店普通任务 筛选未完成,但是尚未超时的任务（临期任务）
+  const taskQuery = {
+      task_status: application.operator.in('option_pending', 'option_transferred', 'option_rollback'),
+      task_plan_time: application.operator.gte(currentTime),
+      set_warning_time: 'option_yes',
+  };
+
+  // 超期任务条件
+  const extendedTaskQuery = {
+      task_status: application.operator.in('option_pending', 'option_transferred', 'option_rollback'),
+      task_plan_time: application.operator.lte(currentTime),
+      set_warning_time: 'option_yes',
+      overdue_reminders: 'option_no'
+
+  }
+  // 获取到超期以及即将需要提醒的任务
+  const tasks = [];
+  await application.data
+      .object('object_store_task')
+      .select(
+          '_id',
+          'name',
+          'description',
+          'task_chat',
+          'task_handler',
+          'task_plan_time',
+          'warning_time',
+          'option_priority',
+          'source_department',
+          'task_create_time',
+          'deadline_time',
+      ).where(
+          application.operator.or(taskQuery, extendedTaskQuery)
+      ).findStream(record => {
+          tasks.push(...record);
+      });
+
+    //  const object_store_taskRes =  await application.data
+    //   .object('object_store_task')
+    //   .select(
+    //       '_id',
+    //       'name',
+    //       'description',
+    //       'task_chat',
+    //       'task_handler',
+    //       'task_plan_time',
+    //       'warning_time',
+    //       'option_priority',
+    //       'source_department',
+    //       'task_create_time',
+    //       'deadline_time',
+    //   ).where(
+    //     taskQuery
+    //   ).find();
+
+    // await baas.redis.setex("appToken", 5, '');
     return
 
     // const client = await newLarkClient({userId: context?.user?._id}, logger); // 创建 Lark 客户端
@@ -22,15 +119,16 @@ module.exports = async function (params, context, logger) {
     //     .findOne();
 
 
+      const messageDefineFields2 = await application.metadata.object('_department').getFields();
+    const fieldApiNames2 = messageDefineFields2.map(item => item.apiName);
+    
+    
     const oldDepAllStore111 = await application.data
-        .object('object_store_staff')
-        .select('_id', 'store_staff_department', 'store_staff')
-        .where({
-            store_staff: 1798281746550820,
-            // store: oldDepStore._id,
-        }).find();
+        .object('_department')
+        .select(fieldApiNames2)
+        .findOne();
 
-    logger.info('门店成员返回测试：', oldDepAllStore111);
+    logger.info('门店成员返回测试：', JSON.stringify(oldDepAllStore111));
 
 return
     const test001 = await application.data.object('object_store_staff').select('_id','store_staff','store_staff_department').where({_id: '1800293549344772'}).find();

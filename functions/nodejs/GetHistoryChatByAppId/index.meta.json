@@ -1,0 +1,31 @@
+{
+  "apiID": "one_store__c__function_aadgryu4iqebs",
+  "apiName": "GetHistoryChatByAppId",
+  "label": {
+    "zh_CN": "根据机器人 id 查询历史群信息",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "appId",
+      "type": "Text",
+      "label": " 历史群机器人 id",
+      "required": false,
+      "description": ""
+    },
+    {
+      "key": "appSecret",
+      "type": "Text",
+      "label": "密钥",
+      "required": true,
+      "description": ""
+    }
+  ],
+  "output": []
+}

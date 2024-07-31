@@ -14,8 +14,11 @@ async function newLarkClient(params, logger) {
     const { userId } = params || {};
     const { appId, tenantAccessToken } = await application.integration.getDefaultTenantAccessToken();
 
+
     const client = new lark.Client({ appId, appSecret: 'fake' });
     client.tokenManager.cache.set(lark.CTenantAccessToken, tenantAccessToken, null, { namespace: appId });
+
+    
     client.httpInstance.interceptors.response.use(
         resp => resp,
         async error => {

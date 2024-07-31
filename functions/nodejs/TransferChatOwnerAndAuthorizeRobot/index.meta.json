@@ -1,0 +1,52 @@
+{
+  "apiID": "one_store__c__function_aadgr6lvueaew",
+  "apiName": "TransferChatOwnerAndAuthorizeRobot",
+  "label": {
+    "zh_CN": "转移历史群群主并授权新机器人为管理员",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "newChatOwner",
+      "type": "Record",
+      "label": "新群主",
+      "required": true,
+      "description": "",
+      "objectApiName": "_user"
+    },
+    {
+      "key": "historyChatId",
+      "type": "Text",
+      "label": " 历史群群 id",
+      "required": true,
+      "description": ""
+    },
+    {
+      "key": "historyChatName",
+      "type": "Text",
+      "label": "历史群名称",
+      "required": false,
+      "description": ""
+    }
+  ],
+  "output": [
+    {
+      "key": "code",
+      "type": "BigInt",
+      "label": "状态码",
+      "description": ""
+    },
+    {
+      "key": "msg",
+      "type": "Text",
+      "label": " 提示信息",
+      "description": ""
+    }
+  ]
+}
