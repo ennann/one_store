@@ -1,0 +1,44 @@
+{
+  "apiID": "one_store__c__function_aadg3fmcpqclu",
+  "apiName": "AddUserListToChat",
+  "label": {
+    "zh_CN": "创建门店时拉人进飞书群",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "自定义函数",
+    "en_US": "Custom Function"
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "chatId",
+      "type": "Text",
+      "label": "飞书群 id",
+      "required": true,
+      "description": ""
+    },
+    {
+      "key": "userList",
+      "type": "RecordList",
+      "label": "部门成员",
+      "required": false,
+      "description": "",
+      "objectApiName": "object_chat_member",
+      "fieldApiNames": [
+        "_name",
+        "store_chat",
+        "chat_member",
+        "chat_member_role",
+        "name",
+        "_id",
+        "_createdBy",
+        "_createdAt",
+        "_updatedBy",
+        "_updatedAt"
+      ]
+    }
+  ],
+  "output": []
+}

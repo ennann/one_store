@@ -14,6 +14,8 @@ module.exports = async function (params, context, logger) {
         logger.error('缺少需要删除的置顶');
         return { code: -1, message: '缺少需要删除的置顶' };
     }
+    // 加上Redis锁
+    await baas.redis.setex("GroupTabDeploy",60 * 10,"Y");
 
     // 获取群置顶的群聊ID
     // const chatRecordList = await faas.function('GroupTabDeployRange').invoke({ chat_tab_deploy_range: chat_pin });

@@ -104,7 +104,7 @@ module.exports = async function (params, context, logger) {
     const feishu_chat_menu_catalogs = await application.data
         .object('object_chat_menu_catalog')
         .select('name', 'description', 'chat_rule', '_id')
-        .where({ all_chats: 'option_yes' })
+        .where({ all_chats: 'option_yes' , boolean_enable: 'option_yes'})
         .find();
 
     for (const feishu_chat_menu_catalog of feishu_chat_menu_catalogs) {

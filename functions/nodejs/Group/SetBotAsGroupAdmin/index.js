@@ -17,7 +17,6 @@ module.exports = async function (params, context, logger) {
     message: ""
   }
 
-  
   const client = await newLarkClient({ userId: context?.user?._id }, logger); // 创建 Lark 客户端
 
   if (!params.code) {

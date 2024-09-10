@@ -1,0 +1,49 @@
+群置顶分发函数[入参]->{
+    "_createdAt": 1724637357246,
+    "_createdBy": {
+        "avatar": {
+            "color": null,
+            "color_id": null,
+            "content": null,
+            "image": {
+                "large": "https://s1-imfile.feishucdn.com/static-resource/v1/v3_006s_c0cc5c52-f468-487c-81c4-3638c969399g~?image_size=noop&cut_type=&quality=&format=image&sticker_format=.webp"
+            },
+            "source": "image"
+        },
+        "i18n_name": [
+            {
+                "language_code": 2052,
+                "text": "潘炜欣"
+            }
+        ],
+        "id": 1806537050148884,
+        "is_deleted": false,
+        "name": "潘炜欣"
+    },
+    "_id": 1808357826614388,
+    "_name": [
+        {
+            "language_code": 2052,
+            "text": "门店智能客服"
+        }
+    ],
+    "_updatedAt": 1724637366468,
+    "_updatedBy": {
+        "id": 1806537050148884,
+        "is_deleted": false,
+        "name": ""
+    },
+    "all_chats": null,
+    "boolean_enable": true,
+    "chat_rule": {
+        "id": 1808358096306179,
+        "is_deleted": false,
+        "name": ""
+    },
+    "chat_tag": null,
+    "department": null,
+    "exclude_chat": null,
+    "pin_name": "门店智能客服",
+    "pin_url": "https://applink.feishu.cn/T8PbkGCo3l6i",
+    "specific_chat": null
+}

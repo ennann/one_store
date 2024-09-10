@@ -1,0 +1,52 @@
+群置顶分发函数[入参]->{
+    "_createdAt": 1724654188540,
+    "_createdBy": {
+        "avatar": {
+            "color": null,
+            "color_id": "B",
+            "content": [
+                {
+                    "language_code": 2052,
+                    "text": "刘浩"
+                }
+            ],
+            "image": null,
+            "source": "field"
+        },
+        "i18n_name": [
+            {
+                "language_code": 2052,
+                "text": "刘浩"
+            }
+        ],
+        "id": 1806616754091018,
+        "is_deleted": false,
+        "name": "刘浩"
+    },
+    "_id": 1808374870705371,
+    "_name": [
+        {
+            "language_code": 2052,
+            "text": "百度"
+        }
+    ],
+    "_updatedAt": 1724654203315,
+    "_updatedBy": {
+        "id": 1806616754091018,
+        "is_deleted": false,
+        "name": ""
+    },
+    "all_chats": null,
+    "boolean_enable": true,
+    "chat_rule": {
+        "id": 1808374672776240,
+        "is_deleted": false,
+        "name": ""
+    },
+    "chat_tag": null,
+    "department": null,
+    "exclude_chat": null,
+    "pin_name": "百度",
+    "pin_url": "https://www.baidu.com/",
+    "specific_chat": null
+}

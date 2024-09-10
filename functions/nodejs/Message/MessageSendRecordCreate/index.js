@@ -130,7 +130,16 @@ module.exports = async function (params, context, logger) {
     };
 
     try {
-        let createMessageRecordResult = await Promise.all(message_send_result.map(item => createMessageSendRecord(item)));
+        let createMessageRecordResult = [];
+        const batchSize = 50;
+        for (let i = 0; i < message_send_result.length; i += batchSize) {
+            const batchSendIds = message_send_result.slice(i, i + batchSize);
+            const createMessageRecordResultItem = await Promise.all(batchSendIds.map(item => createMessageSendRecord(item)));
+            createMessageRecordResult = [...createMessageRecordResult, ...createMessageRecordResultItem]
+
+        }
+
+        // let createMessageRecordResult = await Promise.all(message_send_result.map(item => createMessageSendRecord(item)));
         logger.info('创建消息发送记录成功', createMessageRecordResult);
 
         let successMessageRecord = createMessageRecordResult.filter(item => item.code === 0);

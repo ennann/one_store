@@ -12,13 +12,16 @@ const dayjs = require("dayjs");
  * @return 函数的返回数据
  */
 module.exports = async function (params, context, logger) {
+
+
+    const days = await application.globalVar.getVar("messageReadDays");
     const DB = application.data.object;
     const OP = application.operator;
     const BATCH_OBJECT = 'object_message_send'; //消息发送批次
     const RECORD_OBJECT = 'object_message_record'; //消息发送记录
     const READ_OBJECT = 'object_message_read_record'; //消息阅读记录
     const client = await newLarkClient({ userId: context.user._id }, logger);
-    const timestamp = dayjs().subtract(6, 'day').startOf('day').valueOf();//获取6天前的时间戳
+    const timestamp = dayjs().subtract(days, 'day').startOf('day').valueOf();//获取6天前的时间戳
 
     // 获取飞书群成员
     const getChatMembers = async _id => {

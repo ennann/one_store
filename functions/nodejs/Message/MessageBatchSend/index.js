@@ -121,18 +121,26 @@ module.exports = async function (params, context, logger) {
             const limitSendMessage = createLimiter(sendMessage, { perSecond: 30, perMinute: 500 });
             logger.info({ sendIds });
 
-            const sendMessageResult = await Promise.all(sendIds.map(id => limitSendMessage(id, client)));
+            // 进行分批处理，防止触发飞书限制
+            let sendMessageResults = [];
+            const batchSize = 50;
+            for (let i = 0; i < sendIds.length; i += batchSize) {
+                const batchSendIds = sendIds.slice(i, i + batchSize);
+                const sendMessageResult = await Promise.all(batchSendIds.map(id => limitSendMessage(id, client)));
+                sendMessageResults = [...sendMessageResults, ...sendMessageResult]
 
-            const successRecords = sendMessageResult.filter(result => result?.code === 0);
-            const failRecords = sendMessageResult.filter(result => result?.code !== 0);
+            }
+
+            const successRecords = sendMessageResults.filter(result => result?.code === 0);
+            const failRecords = sendMessageResults.filter(result => result?.code !== 0);
             logger.info(
-                `批量发送消息函数发送消息完成，接下来开始存储记录。消息总数：${sendMessageResult.length}; 成功消息数：${successRecords.length}; 失败消息数：${failRecords.length}`,
+                `批量发送消息函数发送消息完成，接下来开始存储记录。消息总数：${sendMessageResults.length}; 成功消息数：${successRecords.length}; 失败消息数：${failRecords.length}`,
             );
 
             let option_status;
-            if (successRecords.length === sendMessageResult.length) {
+            if (successRecords.length === sendMessageResults.length) {
                 option_status = 'option_all_success';
-            } else if (failRecords.length === sendMessageResult.length) {
+            } else if (failRecords.length === sendMessageResults.length) {
                 option_status = 'option_fail';
             } else {
                 option_status = 'option_part_success';
@@ -152,13 +160,19 @@ module.exports = async function (params, context, logger) {
                         message_content: messageContent.content,
                     };
                     logger.info(`更新消息发送批次记录`, updateData);
-                    await application.data.object('object_message_send').update(updateData);
 
-                    const res = await baas.tasks.createAsyncTask('MessageSendRecordCreate', {
-                        message_send_result: sendMessageResult, // 消息发送结果
+                    const res = await faas.function('MessageSendRecordCreate').invoke({
+                        message_send_result: sendMessageResults, // 消息发送结果
                         message_send_batch: { _id: recordId }, // 消息发送批次
                         message_define: record, // 消息定义记录
                     });
+                    logger.info(`消息发送已完成->更新批次状态`);
+                    await application.data.object('object_message_send').update(updateData);
+                    // const res = await baas.tasks.createAsyncTask('MessageSendRecordCreate', {
+                    //     message_send_result: sendMessageResults, // 消息发送结果
+                    //     message_send_batch: { _id: recordId }, // 消息发送批次
+                    //     message_define: record, // 消息定义记录
+                    // });
 
                     logger.info('更新消息发送批次成功, 执行创建消息发送记录异步任务结果', { res });
                     return { code: 0, message: '批量发送消息成功' };

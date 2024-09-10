@@ -14,11 +14,8 @@ async function newLarkClient(params, logger) {
     const { userId } = params || {};
     const { appId, tenantAccessToken } = await application.integration.getDefaultTenantAccessToken();
 
-
     const client = new lark.Client({ appId, appSecret: 'fake' });
     client.tokenManager.cache.set(lark.CTenantAccessToken, tenantAccessToken, null, { namespace: appId });
-
-    
     client.httpInstance.interceptors.response.use(
         resp => resp,
         async error => {
@@ -398,6 +395,82 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 并发限制参数
+const limitPerSecond = 15;        // 每秒限制的最大并发数
+const windowDuration = 1;        // 时间窗口为1秒
+const maxRetries = 5;            // 最大重试次数
+const baseRetryDelay = 500;      // 重试的基础延迟（毫秒）
+
+// 初始化令牌桶，如果不存在则创建
+async function refillTokens(key, limit) {
+    // 当前秒级时间戳
+    const now = Math.floor(Date.now() / 1000);
+    const tokenKey = `${key}:tokens`;
+    const timestampKey = `${key}:timestamp`;
+
+    const lastRefillTime = await baas.redis.get(timestampKey);
+
+    if (!lastRefillTime || parseInt(lastRefillTime) < now) {
+        // 令牌桶初始化，设置过期时间为 1 秒
+        await baas.redis.set(tokenKey, limit, 'EX', windowDuration);
+        await baas.redis.set(timestampKey, now, 'EX', windowDuration);
+    }
+}
+
+// 获取令牌，成功则返回 true，失败返回 false
+async function acquireToken(key) {
+    const tokenKey = `${key}:tokens`;
+
+    const tokensLeft = await baas.redis.decr(tokenKey);
+
+    if (tokensLeft >= 0) {
+        return true;
+    } else {
+        // 如果没有令牌可用，则回滚计数
+        await baas.redis.incr(tokenKey);
+        return false;
+    }
+}
+
+// 带重试机制的限流器包装函数
+async function limitedFunctionWithRetry(key, logger ,fn, retryCount = 0) {
+    // 填充令牌
+    await refillTokens(key, limitPerSecond);
+
+    const allowed = await acquireToken(key);
+
+    if (allowed) {
+        try {
+            // 执行任务
+            const result = await fn();
+            return {
+                code: 400,
+                msg: result
+            };
+        } catch (err) {
+            logger.warn('任务执行出错:', err);
+            return null;
+        }
+    } else {
+        // 如果未获取到令牌，检查是否需要重试
+        if (retryCount < maxRetries) {
+            // 指数退避
+            const delay = baseRetryDelay * Math.pow(2, retryCount);
+            logger.log(`未获取到令牌，等待 ${delay} 毫秒后重试 (第 ${retryCount + 1} 次)`);
+            // 等待一段时间
+            await sleep(delay);
+            // 递归重试
+            return limitedFunctionWithRetry(key,logger, fn, retryCount + 1);
+        } else {
+            logger.warn('重试次数达到上限，任务被放弃');
+            return {
+                code: 400,
+                msg: '重试次数达到上限，任务被放弃'
+            };
+        }
+    }
+}
+
 module.exports = {
     createLarkClient,
     newLarkClient,
@@ -414,4 +487,5 @@ module.exports = {
     chunkArray,
     fetchUserMobilePhoneById,
     sleep,
+    limitedFunctionWithRetry,
 };

@@ -1,7 +1,7 @@
 // 通过 NPM dependencies 成功安装 NPM 包后此处可引入使用
 // 如安装 linq 包后就可以引入并使用这个包
 // const linq = require("linq");
-const { newLarkClient, createLimiter } = require('../../utils');
+const { newLarkClient, createLimiter,batchOperation } = require('../../utils');
 const dayjs = require('dayjs');
 
 /**
@@ -74,6 +74,23 @@ module.exports = async function (params, context, logger) {
     }
   };
 
+    const deleteRecords = async (msgRecords) => {
+        try {
+            if (msgRecords[0]?.option_send_channel === "option_group") {
+                const batchSize = 10;
+                for(let i = 0; i < msgRecords.length; i += batchSize){
+                    const batch = msgRecords.slice(i, i + batchSize);
+                    await  Promise.all(batch.map(item => deleteMessageRead(item._id)))
+                }
+            }
+            await batchOperation(logger, RECORD_OBJECT, "batchDelete",msgRecords);
+            return { code: 0 };
+        } catch (error) {
+            logger.error(`删除消息记录 ${msg_record._id} 及阅读记录失败`);
+            return { code: -1 };
+        }
+    };
+
   // 通过批次获取所有消息记录
   const getMessageRecords = async () => {
     const msgRecords = [];
@@ -119,7 +136,10 @@ module.exports = async function (params, context, logger) {
     }
 
     if (msgRecords.length > 0) {
-      await Promise.all(msgRecords.map(item => deleteRecord(item)));
+      // await Promise.all(msgRecords.map(item => deleteRecord(item)));
+      // 采用分批执行的方式，防止数据量过大导致请求达到上限
+      await  deleteRecords(msgRecords);
+
       // 更新批次状态为已撤回
       await DB(BATCH_OBJECT).update({
         _id: batch_record._id,

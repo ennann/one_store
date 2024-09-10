@@ -43,6 +43,7 @@ module.exports = async function (params, context, logger) {
             'task_create_time',
             'deadline_time',
             'is_overdue',
+            'task_def'
         ).where(
             application.operator.or(taskQuery, extendedTaskQuery)
         ).findStream(record => {
@@ -328,7 +329,7 @@ async function getChatId(chatId) {
  * @returns {Object} 用户对象
  */
 async function getUser(userId) {
-    return await application.data.object('_user').select('_id', '_department', '_lark_user_id').where({ _id: userId }).findOne();
+    return await application.data.object('_user').select('_id', '_department', '_lark_user_id','_name').where({ _id: userId }).findOne();
 }
 
 /**·

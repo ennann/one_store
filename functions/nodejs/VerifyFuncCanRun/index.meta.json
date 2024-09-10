@@ -1,0 +1,37 @@
+{
+  "apiID": "one_store__c__function_aadg3erasuodw",
+  "apiName": "VerifyFuncCanRun",
+  "label": {
+    "zh_CN": "校验是否可以执行函数",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "防止消息跟群批量操作被同时点击",
+    "en_US": ""
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": true,
+  "input": [
+    {
+      "key": "key",
+      "type": "Text",
+      "label": "redis 键",
+      "required": true,
+      "description": ""
+    }
+  ],
+  "output": [
+    {
+      "key": "msg",
+      "type": "Text",
+      "label": "消息提示",
+      "description": ""
+    },
+    {
+      "key": "flag",
+      "type": "Boolean",
+      "label": "是否可以执行",
+      "description": ""
+    }
+  ]
+}

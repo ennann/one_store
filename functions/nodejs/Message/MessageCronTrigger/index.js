@@ -1,6 +1,6 @@
 const dayjs = require('dayjs');
+const { sleep } = require('../../utils');
 const _ = application.operator;
-
 /**
  * @param {Params}  params     自定义参数
  * @param {Context} context    上下文参数，可通过此参数下钻获取上下文变量信息等
@@ -137,16 +137,16 @@ module.exports = async function (params, context, logger) {
     );
 
     // 创建一个函数，用于调用消息生成函数，最后使用 Promise.all 来并发执行 valuedMessageDefineList 内的消息定义
-    const invokeMessageBatchSendFunction = message_def => {
-        return faas.function('MessageBatchSend').invoke({ record: message_def });
+    const invokeMessageBatchSendFunction = async messageDef => {
+        // 根据消息定义的执行时间，设置延迟多少秒后执行
+        const time = messageDef.datetime_publish - dayjs().valueOf();
+        await sleep(time);
+        return faas.function('MessageBatchSend').invoke({ record: messageDef });
     };
 
-    // 在 for 循环内执行消息批量发送，执行单个发送，避免触发限流
-    const messageGenerationResult = [];
-    for (const messageDef of valuedMessageDefineList) {
-        const result = await invokeMessageBatchSendFunction(messageDef);
-        messageGenerationResult.push(result);
-    }
+    let messageGenerationResult = [];
+    messageGenerationResult = await Promise.all(valuedMessageDefineList.map(messageDef => invokeMessageBatchSendFunction(messageDef)));
+
     logger.info(`消息触发器函数执行完成, 结果数量: ${messageGenerationResult.length}`, messageGenerationResult);
 
     const successList = messageGenerationResult.filter(item => item?.code === 0);
