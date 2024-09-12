@@ -1,0 +1,25 @@
+{
+  "apiID": "one_store__c__function_aadg4kn4jl2ls",
+  "apiName": "SyncLarkChatMember",
+  "label": {
+    "zh_CN": "同步飞书群成员",
+    "en_US": ""
+  },
+  "description": {
+    "zh_CN": "同步飞书侧群成员至 apaas 侧",
+    "en_US": ""
+  },
+  "longTaskMode": false,
+  "frontendSDKInvokable": false,
+  "input": [
+    {
+      "key": "chat",
+      "type": "Record",
+      "label": "飞书群",
+      "required": true,
+      "description": "",
+      "objectApiName": "object_feishu_chat"
+    }
+  ],
+  "output": []
+}

@@ -1,5 +1,5 @@
 const dayjs = require('dayjs');
-const { createLimiter, newLarkClient } = require('../../utils');
+const { createLimiter, newLarkClient ,batchOperation,sleep} = require('../../utils');
 const _ = application.operator;
 
 /**
@@ -180,6 +180,8 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
 
         const department_record = taskDefine.publish_department;
 
+        const chatRecordDetailList = [];
+
         // option_01 代表任务处理人类型为门店，option_02 代表任务处理人类型为人员
         if (taskDefine.option_handler_type === 'option_01') {
             const chatRecordList = await faas.function('DeployChatRange').invoke({ deploy_rule: taskDefine.chat_rule });
@@ -192,10 +194,9 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
             let chatRecordIdList = chatRecordList.map(item => item._id);
 
             // 批量查询，获取群组详情
-            const chatRecordDetailList = [];
             await application.data
                 .object('object_feishu_chat')
-                .select('_id', 'department')
+                .select('_id', 'department',"chat_id")
                 .where({ _id: _.in(chatRecordIdList) })
                 .findStream(async records => {
                     chatRecordDetailList.push(...records);
@@ -342,16 +343,82 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
         if (createDataList.length > 0) {
             logger.info(`即将创建的门店普通任务数据数据，数据总数${createDataList.length}（仅展示第一个数据）`, createDataList[0]);
 
-            const storeTaskCreateResults = await Promise.all(createDataList.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
+            // const storeTaskCreateResults = await Promise.all(createDataList.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
+            let storeTaskCreateResults = [];
+            const batchSize = 30;
+            for (let i = 0; i < createDataList.length; i += batchSize) {
+                const batch = createDataList.slice(i, i + batchSize);
+                const batchResults = await Promise.all(batch.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
+                // logger.info(`批量创建的门店普通任务数据数据，数据总数${batchResults.length}（仅展示第一个数据）`, batchResults[0]);
+                storeTaskCreateResults = [...storeTaskCreateResults, ...batchResults];
+                await sleep(400);
+            }
+
             const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
             const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
 
-            const messageCardSendDataList = successfulStoreTasks.map(item => item.messageCardSendData).filter(data => data && Object.keys(data).length > 0);
+            // const messageCardSendDataList = successfulStoreTasks.map(item => item.messageCardSendData).filter(data => data && Object.keys(data).length > 0);
+            const messageCardSendDataList = successfulStoreTasks.filter(data => data && Object.keys(data.messageCardSendData).length > 0);
 
-            const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(messageCardSendData => limitedSendFeishuMessage(messageCardSendData, client)));
+            // 获取创建成功的门店普通任务数据，用于更新
+            // const updateStoreTaskList = successfulStoreTasks.map(item => item.updateStoreTask).filter(data => data && Object.keys(data).length > 0)
 
+            logger.info("开始发送飞书消息");
+            let updateDataList = [];
+            // const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(item => limitedSendFeishuMessage(item.messageCardSendData, client))).then(result=>{
+            //     result.map((item,index)=>{
+            //         if (item.code === 0){
+            //             updateDataList.push({
+            //                 _id: messageCardSendDataList[index].updateStoreTask.id._id,
+            //                 message_id: item.data.message_id,
+            //             })
+            //         }
+            //     })
+            //     logger.info(result)
+            // })
+            const sendFeishuMessageResults = await Promise.all(messageCardSendDataList.map(item => limitedSendFeishuMessage(item.messageCardSendData, client)));
+
+            sendFeishuMessageResults.map((item,index)=>{
+                if (item.code === 0){
+                    updateDataList.push({
+                        _id: messageCardSendDataList[index].storeTaskId._id,
+                        task_message_id: item.data.message_id,
+                    })
+                }
+            })
+
+            // logger.info("messageCardSendDataList,",messageCardSendDataList)
+            // logger.info("sendFeishuMessageResults,",sendFeishuMessageResults)
             const sendFeishuMessageSuccess = sendFeishuMessageResults.filter(result => result.code === 0);
             const sendFeishuMessageFail = sendFeishuMessageResults.filter(result => result.code !== 0);
+
+            logger.info(`任务创建结果：成功创建门店普通任务数量${sendFeishuMessageSuccess.length}，失败创建门店普通任务数量${sendFeishuMessageFail.length}`,"开始创建apaas侧门店数据");
+
+            try {
+                // logger.info(`消息发送成功返回的数据:`,sendFeishuMessageSuccess[0],"即将更新的数据本体:",createDataList[0],"范围内的飞书群数据：",chatRecordDetailList[0]);
+                // if (taskDefine.option_handler_type === 'option_01') {
+                //     logger.info("门店侧开始执行")
+                //     for (let storeTask of updateStoreTaskList) {
+                //         for (let sendFeishuMessageResultItem of sendFeishuMessageSuccess) {
+                //             const feishuChat = chatRecordDetailList.find(item => item.chat_id === sendFeishuMessageResultItem.receive_id);
+                //             logger.info("获取到的匹配飞书群",feishuChat);
+                //             if ( storeTask.targetId === feishuChat._id){
+                //                 updateDataList.push({
+                //                     _id: storeTask.id,
+                //                     task_messsage_id: sendFeishuMessageResultItem.data.message_id
+                //                 })
+                //             }
+                //         }
+                //     }
+                // }  else if (taskDefine.option_handler_type === 'option_02') {
+                //
+                // }
+                logger.info("即将更新的数据本体",updateDataList[0]);
+                await batchOperation(logger,"object_store_task","batchUpdate",updateDataList);
+            }catch (e) {
+                logger.error(`创建 apaas 门店数据失败：${e.message}`);
+            }
+
 
             const updateData = {
                 _id: taskBatch._id,
@@ -394,6 +461,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
 /**
  * @description 创建门店普通任务，并发送消息
  * @param {*} storeTask
+ * @param sourceDepartmentName
  * @param {*} logger
  * @returns
  */
@@ -463,7 +531,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
             };
 
             data.content = JSON.stringify(content);
-            logger.info('飞书消息发送内容：', data.content)
+            // logger.info('飞书消息发送内容：', data.content)
 
             if (storeTask.task_chat) {
                 const feishuChat = await application.data.object('object_feishu_chat').select('_id', 'chat_id').where({ _id: storeTask.task_chat._id }).findOne();
@@ -512,7 +580,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                 }
             }
 
-            return { code: 0, message: '创建门店普通任务成功，返回消息卡片内容', messageCardSendData: data };
+            return { code: 0, message: '创建门店普通任务成功，返回消息卡片内容', messageCardSendData: data ,storeTaskId: storeTaskId};
         } catch (error) {
             logger.error('messageCardSendData--->', JSON.stringify(data, null, 2));
             logger.error(`组装门店普通任务[${storeTask._id}]发送消息卡片失败-->`, error);
