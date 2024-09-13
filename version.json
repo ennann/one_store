@@ -1,5 +1,10 @@
 [
     {
+        "date": "2024-09-13",
+        "version": "1.0.1",
+        "description": "修改 tenantDomain 和 namespace 的获取方式"
+    },
+    {
         "date": "2024-09-12",
         "version": "1.0.0",
         "description": "Initial version"

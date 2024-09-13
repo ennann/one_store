@@ -139,7 +139,7 @@ module.exports = async function (params, context, logger) {
     }
 
     if (createDataList.length > 0) {
-        const storeTaskCreateResults = await Promise.all(createDataList.map(object_store_task => createStoreTaskEntryStart(object_store_task, logger)));
+        const storeTaskCreateResults = await Promise.all(createDataList.map(object_store_task => createStoreTaskEntryStart(context, object_store_task, logger)));
         const successfulStoreTasks = storeTaskCreateResults.filter(result => result.code === 0);
         const failedStoreTasks = storeTaskCreateResults.filter(result => result.code !== 0);
         const messageCardSendDataList = [];
@@ -224,7 +224,7 @@ module.exports = async function (params, context, logger) {
  * @param {*} logger 
  * @returns 
  */
-async function createStoreTaskEntryStart(object_store_task, logger) {
+async function createStoreTaskEntryStart(context, object_store_task, logger) {
     try {
         //判断是否发送成功者，发送成功者不再发送
         let object_store_task_out = {};
@@ -268,8 +268,7 @@ async function createStoreTaskEntryStart(object_store_task, logger) {
                 option_type: 'option_priority',
                 option_api: object_store_task.option_priority,
             });
-            const namespace = await application.globalVar.getVar("namespace");
-            const tenantDomain = await application.globalVar.getVar("tenantDomain");
+            const { name: tenantDomain, namespace } = context.tenant;
 
             //判断执行流程的url
             const url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=` + storeTaskId;

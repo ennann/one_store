@@ -17,8 +17,7 @@ module.exports = async function (params, context, logger) {
     const { object_task_create_monitor } = params;
 
     // 从环境变量中获取租户域名和命名空间
-    const tenantDomain = await application.globalVar.getVar('tenantDomain');
-    const namespace = await application.globalVar.getVar('namespace');
+    const { name: tenantDomain, namespace } = context.tenant;
 
     if (!object_task_create_monitor) {
         logger.error('未传入任务处理记录');

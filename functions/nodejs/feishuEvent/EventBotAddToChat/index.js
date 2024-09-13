@@ -77,8 +77,7 @@ async function generateCardButtonUrl(context, chat_id, group_id) {
     const SCOPE = 'im:chat';
     const STATE = `setgroupadmin_user`;
     const { appId: APPID } = await application.integration.getDefaultTenantAccessToken();
-    const namespace = await application.globalVar.getVar("namespace");
-    const tenantDomain = await application.globalVar.getVar("tenantDomain");
+    const { name: tenantDomain, namespace } = context.tenant;
 
     const BASE_URL =`https%3A%2F%2F${tenantDomain}.feishuapp.cn%2Fae%2Fapps%2F${namespace}%2Faadgdtfskbqhi`;
 

@@ -65,7 +65,7 @@ module.exports = async function (params, context, logger) {
     await baas.redis.del(taskBatchNumberCreateResult?.task_id);
 
     // 调用创建门店普通任务函数
-    const storeTaskCreateResults = await batchCreateThirdLevelStoreTask(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage, client);
+    const storeTaskCreateResults = await batchCreateThirdLevelStoreTask(task_def_record, taskBatchNumberCreateResult.object_task_create_monitor, logger, limitedSendFeishuMessage, client, context);
 
     return {
         code: storeTaskCreateResults.code,
@@ -156,7 +156,7 @@ async function createSecondLevelTaskBatch(taskDefine, logger) {
  * @param {*} limitedSendFeishuMessage
  * @returns
  */
-async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, limitedSendFeishuMessage, client) {
+async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, limitedSendFeishuMessage, client, context) {
     const createDataList = [];
     logger.info('任务批量 msg：',taskBatch)
 
@@ -343,12 +343,11 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
         if (createDataList.length > 0) {
             logger.info(`即将创建的门店普通任务数据数据，数据总数${createDataList.length}（仅展示第一个数据）`, createDataList[0]);
 
-            // const storeTaskCreateResults = await Promise.all(createDataList.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
             let storeTaskCreateResults = [];
             const batchSize = 30;
             for (let i = 0; i < createDataList.length; i += batchSize) {
                 const batch = createDataList.slice(i, i + batchSize);
-                const batchResults = await Promise.all(batch.map(task => createThirdLevelStoreTask(task, sourceDepartmentName, logger)));
+                const batchResults = await Promise.all(batch.map(task => createThirdLevelStoreTask(context, task, sourceDepartmentName, logger)));
                 // logger.info(`批量创建的门店普通任务数据数据，数据总数${batchResults.length}（仅展示第一个数据）`, batchResults[0]);
                 storeTaskCreateResults = [...storeTaskCreateResults, ...batchResults];
                 await sleep(400);
@@ -465,7 +464,7 @@ async function batchCreateThirdLevelStoreTask(taskDefine, taskBatch, logger, lim
  * @param {*} logger
  * @returns
  */
-async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger) {
+async function createThirdLevelStoreTask(context, storeTask, sourceDepartmentName, logger) {
     // storeTask 代表门店普通任务
     try {
         const storeTaskId = await application.data.object('object_store_task').create(storeTask);
@@ -492,8 +491,7 @@ async function createThirdLevelStoreTask(storeTask, sourceDepartmentName, logger
                 };
             }
 
-            const namespace = await application.globalVar.getVar("namespace");
-            const tenantDomain = await application.globalVar.getVar("tenantDomain");
+            const { name: tenantDomain, namespace } = context.tenant;
 
             const url = `https://${tenantDomain}.feishuapp.cn/ae/apps/${namespace}/aadgik5q3gyhw?params_var_bcBO3kSg=` + storeTaskId._id;
             const pc_url = url;

@@ -51,7 +51,7 @@ module.exports = async function (params, context, logger) {
         });
 
     const warningTasks = filterWarningTasks(tasks, currentTime, logger);
-    const messageCardSendDataList = await generateMessageCardSendData(warningTasks, logger, currentTime);
+    const messageCardSendDataList = await generateMessageCardSendData(warningTasks, logger, context, currentTime);
 
     const client = await newLarkClient({ userId: context.user._id }, logger);
 
@@ -103,7 +103,7 @@ function filterWarningTasks(tasks, currentTime, logger) {
  * @param currentTime
  * @returns {Array} 消息卡片数据列表
  */
-async function generateMessageCardSendData(tasks, logger,currentTime) {
+async function generateMessageCardSendData(tasks, logger, context, currentTime) {
     const messageCardSendDataList = [];
     for (const task of tasks) {
         const priority = await faas.function('GetOptionName').invoke({
@@ -112,8 +112,7 @@ async function generateMessageCardSendData(tasks, logger,currentTime) {
             option_api: task.option_priority,
         });
 
-        const namespace = await application.globalVar.getVar("namespace");
-        const tenantDomain = await application.globalVar.getVar("tenantDomain");
+        const { name: tenantDomain, namespace } = context.tenant;
 
         const url = generateTaskUrl(task._id,namespace,tenantDomain);
         const content = generateMessageContent(task, priority.option_name, url, currentTime);
